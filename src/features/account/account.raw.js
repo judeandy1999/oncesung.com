@@ -1,0 +1,52 @@
+
+(function(){
+'use strict';
+const $=s=>document.querySelector(s);
+const esc=x=>String(x==null?'':x).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const get=(k,f)=>{try{const v=JSON.parse(localStorage.getItem(k));return v==null?f:v;}catch(e){return f;}};
+const set=(k,v)=>{try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){return false;}};
+const fmtDate=iso=>{const d=new Date(iso);return isNaN(d)?'':d.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});};
+const say=m=>{let t=document.getElementById('acct-toast');if(!t){t=document.createElement('div');t.id='acct-toast';t.setAttribute('role','status');t.style.cssText='position:fixed;left:50%;bottom:28px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:12px 20px;border-radius:12px;font-size:14px;z-index:100;max-width:90%';document.body.append(t);}t.textContent=m;t.hidden=false;clearTimeout(t._t);t._t=setTimeout(()=>t.hidden=true,3200);};
+
+/* ---- Profile ---- */
+const form=$('#profile-form');
+function showProfile(){const p=get('oncesung:profile',{});['name','email','phone'].forEach(k=>{form.elements[k].value=p[k]||'';});
+  const name=(p.name||'').trim();$('[data-acct-name]').textContent=name||'Your account';$('[data-acct-email]').textContent=p.email||'Saved on this device';$('[data-acct-initial]').textContent=name?name[0].toUpperCase():'?';}
+form.addEventListener('submit',e=>{e.preventDefault();const email=form.elements.email.value.trim();if(email&&!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){form.elements.email.focus();$('#profile-status').textContent='Please check the email address.';return;}
+  const p={};['name','email','phone'].forEach(k=>p[k]=form.elements[k].value.trim());$('#profile-status').textContent=set('oncesung:profile',p)?'Saved on this device.':'This browser cannot save your details.';showProfile();});
+$('#profile-clear').addEventListener('click',()=>{try{localStorage.removeItem('oncesung:profile');}catch(e){}showProfile();$('#profile-status').textContent='Details cleared.';});
+
+/* ---- Unfinished questionnaire ---- */
+function showDraft(){const d=get('oncesung-song-intake-v1',null);const slot=$('#draft-slot');if(!d||!d.data||!d.data.answers){slot.innerHTML='';return;}
+  const a=d.data.answers,who=a.recipient?'for '+a.recipient:(a.service||'');
+  slot.innerHTML='<div class="notice" style="margin-top:18px;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap"><div><b class="small">You have an unfinished song questionnaire'+(who?' '+esc(who):'')+'.</b><div class="xs muted">Step '+(Math.min(5,(+d.step||0)+1))+' of 5 · saved on this device</div></div><a class="btn btn-outline btn-sm" href="song-intake.html">Continue</a></div>';}
+
+/* ---- Briefs ---- */
+const LABELS=[['service','Creation type'],['occasion','Occasion'],['recipient','Recipient'],['giver','From'],['relationship','Relationship'],['perspective','Perspective'],['message','Main message'],['story','Featured memory'],['exclude','Leave out'],['genre','Style'],['genre_mix','Style mix'],['voice','Vocals'],['delivery','Delivery'],['language','Language'],['era','Era'],['tempo','Tempo'],['energy','Energy'],['instruments','Instruments'],['song_title','Title / hook'],['structure','Structure'],['explicit','Language rating'],['use','Listening context'],['event_date','Event date'],['length','Length'],['extra','Other notes']];
+function briefs(){const l=get('oncesung:briefs',[]);return Array.isArray(l)?l.filter(x=>x&&x.id&&x.brief&&x.brief.answers):[];}
+function card(e){const p=e.brief,a=p.answers||{},moods=p.moods||[];
+  const title=a.song_title?'“'+a.song_title+'”':(a.recipient?'A song for '+a.recipient:(a.service||'Song brief'));
+  const meta=[a.occasion,a.service,'Saved '+fmtDate(e.saved_at)].filter(Boolean).join(' · ');
+  const chips=[a.genre==='A mix'?a.genre_mix:a.genre,a.voice,a.language,...moods].filter(Boolean).map(x=>'<span class="pill">'+esc(x)+'</span>').join('');
+  const rows=LABELS.filter(([k])=>a[k]&&String(a[k]).trim()&&k!=='message').map(([k,l])=>'<dt>'+esc(l)+'</dt><dd>'+esc(Array.isArray(a[k])?a[k].join(', '):a[k])+'</dd>');
+  if((p.story_details||[]).length)rows.splice(Math.min(6,rows.length),0,'<dt>Personal details</dt><dd>'+esc(p.story_details.map((x,i)=>(i+1)+'. '+x).join('\n'))+'</dd>');
+  if((p.names||[]).length)rows.push('<dt>Names</dt><dd>'+esc(p.names.map(n=>n.name+(n.hint?' — '+n.hint:'')).join('\n'))+'</dd>');
+  if((p.requested_phrases||[]).length)rows.push('<dt>Phrases</dt><dd>'+esc(p.requested_phrases.map(x=>(x.locked?'Exact: ':'')+x.text).join('\n'))+'</dd>');
+  return '<article class="card pad brief-card" data-id="'+esc(e.id)+'"><div class="brief-top"><div><h3>'+esc(title)+'</h3><div class="xs muted" style="margin-top:4px">'+esc(meta)+'</div></div><span class="badge">Brief</span></div>'
+   +(chips?'<div class="chip-row">'+chips+'</div>':'')
+   +(a.message?'<p class="brief-msg">'+esc(a.message)+'</p>':'')
+   +(rows.length?'<dl class="brief-kv">'+rows.join('')+'</dl>':'')
+   +'<details class="brief-full"><summary>View the full brief</summary><pre>'+esc(e.text||'')+'</pre></details>'
+   +'<div class="brief-actions"><button class="btn btn-primary btn-sm" data-act="order">Order this song</button><button class="btn btn-ghost btn-sm" data-act="edit">Edit answers</button><button class="btn btn-ghost btn-sm" data-act="download">Download</button><button class="btn btn-ghost btn-sm" data-act="delete">Delete</button></div></article>';}
+function showBriefs(){const l=briefs();$('#brief-count').textContent=l.length?l.length+' saved':'';
+  $('#briefs').innerHTML=l.length?l.map(card).join(''):'<div class="card empty"><h3 style="margin:0;font-size:20px">No song briefs yet</h3><p class="muted" style="margin:8px auto 16px;max-width:420px">When you finish the song questionnaire and continue to checkout, or choose “Save to my account”, your answers appear here.</p><a class="btn btn-primary btn-sm" href="song-intake.html">Tell us your story</a></div>';}
+$('#briefs').addEventListener('click',ev=>{const btn=ev.target.closest('button[data-act]');if(!btn)return;const el=btn.closest('[data-id]'),id=el.dataset.id,l=briefs(),e=l.find(x=>x.id===id);if(!e)return;const act=btn.dataset.act;
+  if(act==='edit'){try{sessionStorage.setItem('oncesung:edit-brief',JSON.stringify(e.data));}catch(err){}location.href='song-intake.html';}
+  else if(act==='order'){const p=e.brief,a=p.answers||{},cut=(x,n)=>{x=String(x||'').replace(/\s+/g,' ').trim();return x.length>n?x.slice(0,n-1)+'…':x;};let date='';if(a.event_date){const dt=new Date(a.event_date+'T12:00:00');date=isNaN(dt)?a.event_date:dt.toLocaleDateString('en-GB',{day:'numeric',month:'short',year:'numeric'});}
+    try{sessionStorage.setItem('oncesung:story',JSON.stringify({occasion:a.occasion||a.service||'',recipient:a.recipient||'',relationship:a.relationship||a.giver||'',date,genre:a.genre==='A mix'?(a.genre_mix||'A mix'):(a.genre||''),mood:(p.moods||[]).join(', '),moments:cut((p.story_details||[]).join(' · '),140),details:cut(a.message,140)}));sessionStorage.setItem('oncesung:brief',JSON.stringify({text:e.text,json:p}));}catch(err){}
+    location.href='checkout-review.html';}
+  else if(act==='download'){const blob=new Blob([e.text||''],{type:'text/plain'}),u=URL.createObjectURL(blob),link=document.createElement('a');link.href=u;link.download='oncesung-song-brief-'+(e.brief.answers.recipient||'song').replace(/[^\w-]+/g,'-').toLowerCase()+'.txt';document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(u),5000);}
+  else if(act==='delete'){if(btn.dataset.confirm!=='1'){btn.dataset.confirm='1';btn.textContent='Tap again to delete';btn.classList.add('btn-outline');setTimeout(()=>{if(btn.isConnected){btn.dataset.confirm='';btn.textContent='Delete';btn.classList.remove('btn-outline');}},4000);return;}
+    set('oncesung:briefs',l.filter(x=>x.id!==id));showBriefs();say('Brief deleted.');}});
+showProfile();showDraft();showBriefs();
+})();
