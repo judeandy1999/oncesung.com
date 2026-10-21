@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
 import { PACKAGES, oncesungStore, resolvePackage, type PackageKey } from "@/lib/store";
 import { hrefFromHtml } from "@/lib/routes";
@@ -21,6 +21,7 @@ function $$(sel: string, root: ParentNode = document) {
 export function SiteInteractions() {
   const { toast } = useToast();
   const router = useRouter();
+  const pathname = usePathname();
 
   useEffect(() => {
     const cleanups: Array<() => void> = [];
@@ -50,16 +51,63 @@ export function SiteInteractions() {
       toast(t.dataset.toast || "");
     });
 
-    /* Waveforms + simulated playback */
+    /* Waveforms + playback. Cards and players with data-audio play the MP3.
+       Buttons with no file keep the old preview toast. */
     const fmt = (s: number) =>
       Math.floor(s / 60) + ":" + String(Math.floor(s % 60)).padStart(2, "0");
-    let active: { btn: HTMLElement; timer: ReturnType<typeof setInterval> } | null = null;
-    const stopActive = () => {
-      if (!active) return;
-      clearInterval(active.timer);
-      active.btn.innerHTML = PLAY;
-      active.btn.classList.remove("playing");
-      active = null;
+    const audio = new Audio();
+    audio.preload = "metadata";
+    let activeSrc = "";
+
+    const srcOf = (btn: HTMLElement) => {
+      if (btn.dataset.audio) return btn.dataset.audio;
+      const host = btn.closest("[data-audio]") as HTMLElement | null;
+      return host?.dataset.audio || "";
+    };
+
+    const paint = (player: HTMLElement, pos: number, total: number) => {
+      const wave = $(".wave", player);
+      const time = $(".time", player);
+      if (!wave) return;
+      const bars = $$("i", wave);
+      const safe = total > 0 ? total : 1;
+      const k = Math.round((Math.min(Math.max(pos, 0), safe) / safe) * bars.length);
+      bars.forEach((b, i) => b.classList.toggle("on", i < k));
+      if (time) time.textContent = fmt(pos) + " / " + fmt(total);
+    };
+
+    const displayTotal = (src: string) => {
+      const player = $$(".player").find((p) => p.dataset.audio === src);
+      const attr = player ? +(player.dataset.len || 0) : 0;
+      if (attr > 0) return attr;
+      if (activeSrc === src && Number.isFinite(audio.duration) && audio.duration > 0) {
+        return Math.round(audio.duration);
+      }
+      return 0;
+    };
+
+    const drawSrc = (src: string, pos: number) => {
+      const total = displayTotal(src);
+      $$(".player").forEach((p) => {
+        if (p.dataset.audio === src) paint(p, pos, total);
+      });
+    };
+
+    const resetOtherPlayers = (src: string) => {
+      $$(".player").forEach((p) => {
+        if (!p.dataset.audio || p.dataset.audio === src) return;
+        paint(p, 0, +(p.dataset.len || 0));
+      });
+    };
+
+    const mark = (src: string, playing: boolean) => {
+      $$(".play").forEach((b) => {
+        const bsrc = srcOf(b);
+        if (!bsrc) return;
+        const on = playing && bsrc === src;
+        b.classList.toggle("playing", on);
+        b.innerHTML = on ? PAUSE : PLAY;
+      });
     };
 
     $$(".wave").forEach((w, wi) => {
@@ -75,49 +123,104 @@ export function SiteInteractions() {
       }
     });
 
-    $$(".player").forEach((p) => {
-      const btn = $(".play", p);
-      const wave = $(".wave", p);
-      const time = $(".time", p);
-      if (!btn || !wave) return;
-      const total = +(p.dataset.len || 192);
-      let pos = 0;
-      const draw = () => {
-        const bars = $$("i", wave);
-        const k = Math.round((pos / total) * bars.length);
-        bars.forEach((b, i) => b.classList.toggle("on", i < k));
-        if (time) time.textContent = fmt(pos) + " / " + fmt(total);
-      };
-      draw();
-      on(btn, "click", () => {
-        if (active && active.btn === btn) return stopActive();
-        stopActive();
-        btn.innerHTML = PAUSE;
-        btn.classList.add("playing");
-        active = {
-          btn,
-          timer: setInterval(() => {
-            pos = (pos + 1) % total;
-            draw();
-          }, 250),
-        };
-      });
-      on(wave, "click", (e) => {
-        const r = wave.getBoundingClientRect();
-        pos = Math.round((((e as MouseEvent).clientX - r.left) / r.width) * total);
-        draw();
-      });
+    $$(".player").forEach((p) => paint(p, 0, +(p.dataset.len || 0)));
+
+    const onTime = () => {
+      if (activeSrc) drawSrc(activeSrc, audio.currentTime);
+    };
+    const onEnded = () => {
+      const src = activeSrc;
+      mark(src, false);
+      if (src) drawSrc(src, displayTotal(src));
+    };
+    audio.addEventListener("timeupdate", onTime);
+    audio.addEventListener("ended", onEnded);
+    cleanups.push(() => {
+      audio.removeEventListener("timeupdate", onTime);
+      audio.removeEventListener("ended", onEnded);
+      audio.pause();
+      audio.removeAttribute("src");
+      audio.load();
     });
 
-    $$(".play:not(.player .play)").forEach((b) =>
-      on(b, "click", (e) => {
+    on(
+      document,
+      "click",
+      (e) => {
+      const btn = (e.target as Element).closest(".play") as HTMLElement | null;
+      if (!btn) return;
+      const src = srcOf(btn);
+      if (!src) {
+        if (btn.closest(".player")) return;
         e.preventDefault();
         e.stopPropagation();
-        const onPlaying = b.classList.toggle("playing");
-        b.innerHTML = onPlaying ? PAUSE : PLAY;
+        const onPlaying = btn.classList.toggle("playing");
+        btn.innerHTML = onPlaying ? PAUSE : PLAY;
         if (onPlaying) toast("Playing preview…");
-      }),
+        return;
+      }
+      e.preventDefault();
+      e.stopPropagation();
+      if (activeSrc === src && !audio.paused) {
+        audio.pause();
+        mark(src, false);
+        return;
+      }
+      if (activeSrc !== src) {
+        resetOtherPlayers(src);
+        audio.src = src;
+        activeSrc = src;
+      }
+      if (audio.ended) audio.currentTime = 0;
+      mark(src, true);
+      void audio.play().catch((err: unknown) => {
+        if (err instanceof DOMException && err.name === "AbortError") return;
+        mark(src, false);
+        toast("Couldn't play this preview");
+      });
+    },
+      { capture: true },
     );
+
+    $$(".player").forEach((p) => {
+      const wave = $(".wave", p);
+      const src = p.dataset.audio || "";
+      if (!wave) return;
+      if (!src) {
+        const total = +(p.dataset.len || 192);
+        let pos = 0;
+        on(wave, "click", (e) => {
+          const r = wave.getBoundingClientRect();
+          pos = Math.round((((e as MouseEvent).clientX - r.left) / r.width) * total);
+          paint(p, pos, total);
+        });
+        return;
+      }
+      on(wave, "click", (e) => {
+        const r = wave.getBoundingClientRect();
+        const ratio = Math.min(1, Math.max(0, ((e as MouseEvent).clientX - r.left) / r.width));
+        const apply = () => {
+          const dur =
+            Number.isFinite(audio.duration) && audio.duration > 0
+              ? audio.duration
+              : +(p.dataset.len || 0);
+          try {
+            audio.currentTime = ratio * dur;
+          } catch {
+            return;
+          }
+          drawSrc(src, audio.currentTime);
+        };
+        if (activeSrc !== src) {
+          resetOtherPlayers(src);
+          audio.src = src;
+          activeSrc = src;
+          mark(src, false);
+        }
+        if (audio.readyState >= 1) apply();
+        else audio.addEventListener("loadedmetadata", apply, { once: true });
+      });
+    });
 
     /* Favourites */
     on(document, "click", (e) => {
@@ -449,10 +552,9 @@ export function SiteInteractions() {
     );
 
     return () => {
-      stopActive();
       cleanups.forEach((fn) => fn());
     };
-  }, [toast, router]);
+  }, [toast, router, pathname]);
 
   return null;
 }

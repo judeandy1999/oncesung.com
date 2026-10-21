@@ -5,6 +5,7 @@ import { SiteHeader } from "@/components/SiteHeader";
 import { SiteInteractions } from "@/components/SiteInteractions";
 import { ToastProvider } from "@/hooks/use-toast";
 import { SITE_NAME, SITE_TAGLINE } from "@/lib/routes";
+import { createClient } from "@/lib/supabase/server";
 import "./globals.css";
 
 const inter = Inter({
@@ -39,14 +40,23 @@ export const metadata: Metadata = {
   },
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  let email: string | null = null;
+  try {
+    const supabase = await createClient();
+    const { data } = await supabase.auth.getUser();
+    email = data.user?.email ?? null;
+  } catch {
+    email = null;
+  }
+
   return (
     <html lang="en">
       <body className={`${inter.variable} ${dmSerif.variable} ${caveat.variable}`}>
         <ToastProvider>
-          <SiteHeader />
+          <SiteHeader email={email} />
           {children}
-          <SiteFooter />
+          <SiteFooter email={email} />
           <SiteInteractions />
         </ToastProvider>
       </body>

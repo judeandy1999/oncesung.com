@@ -2,10 +2,11 @@
 
 import Link from "next/link";
 import { FormEvent } from "react";
+import { signOut } from "@/features/auth/actions";
 import { Logo } from "./Logo";
 import { useToast } from "@/hooks/use-toast";
 
-export function SiteFooter() {
+export function SiteFooter({ email }: { email: string | null }) {
   const { toast } = useToast();
 
   function onNewsletter(e: FormEvent<HTMLFormElement>) {
@@ -73,18 +74,38 @@ export function SiteFooter() {
           <div>
             <h5>Account</h5>
             <ul>
-              <li>
-                <Link href="/account">My Account</Link>
-              </li>
-              <li>
-                <Link href="/dashboard">My Orders</Link>
-              </li>
-              <li>
-                <Link href="/requests">Revisions &amp; Remakes</Link>
-              </li>
-              <li>
-                <Link href="/downloads">Downloads</Link>
-              </li>
+              {email ? (
+                <>
+                  <li>
+                    <Link href="/account">My Account</Link>
+                  </li>
+                  <li>
+                    <Link href="/dashboard">My Orders</Link>
+                  </li>
+                  <li>
+                    <Link href="/requests">Revisions &amp; Remakes</Link>
+                  </li>
+                  <li>
+                    <Link href="/downloads">Downloads</Link>
+                  </li>
+                  <li>
+                    <form action={signOut}>
+                      <button className="link" type="submit" style={{ background: "none", border: 0, padding: 0 }}>
+                        Log out
+                      </button>
+                    </form>
+                  </li>
+                </>
+              ) : (
+                <>
+                  <li>
+                    <Link href="/login">Log in</Link>
+                  </li>
+                  <li>
+                    <Link href="/register">Register</Link>
+                  </li>
+                </>
+              )}
               <li>
                 <Link href="/referral">Refer a Friend</Link>
               </li>
