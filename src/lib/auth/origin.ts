@@ -9,7 +9,5 @@ export async function getSiteOrigin() {
   const host = headerList.get("x-forwarded-host") ?? headerList.get("host");
   const proto = headerList.get("x-forwarded-proto") ?? "http";
   if (!host) return "http://localhost:3000";
-  const hostname = host.split(":")[0];
-  if (hostname !== "localhost" && hostname !== "127.0.0.1") return "http://localhost:3000";
   return `${proto === "https" ? "https" : "http"}://${host}`;
 }

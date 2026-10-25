@@ -42,10 +42,21 @@ export async function updateSession(request: NextRequest) {
     },
   });
 
+  const { pathname, search } = request.nextUrl;
+
+  const authCode = request.nextUrl.searchParams.get("code");
+  if (authCode && pathname !== "/auth/callback") {
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/auth/callback";
+    if (!redirectUrl.searchParams.get("next")) {
+      redirectUrl.searchParams.set("next", "/account");
+    }
+    return withSessionCookies(supabaseResponse, NextResponse.redirect(redirectUrl));
+  }
+
   const {
     data: { user },
   } = await supabase.auth.getUser();
-  const { pathname, search } = request.nextUrl;
 
   if (!user && isProtected(pathname)) {
     const redirectUrl = request.nextUrl.clone();
