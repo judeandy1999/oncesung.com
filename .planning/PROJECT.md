@@ -74,6 +74,7 @@ Codebase map: `.planning/codebase/`.
 | Owner fulfills by uploading a file from an admin page | Songs are created manually for now | — Pending |
 | Customer plays and downloads that file from My Orders | The upload has to reach the person who paid | — Pending |
 | Admin is the site owner only | The owner asked for a place where they can see orders and upload | — Pending |
+| The owner commits, and no pull request is opened from this work | The owner asked to make the commits themselves and not to create a pull request | — Pending |
 
 ## Evolution
 
