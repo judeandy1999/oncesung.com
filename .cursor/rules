@@ -1,0 +1,367 @@
+<!-- GSD:project-start source:PROJECT.md -->
+## Project
+
+**Oncesung**
+
+Oncesung sells a personalized song as a gift. A signed-in customer tells the story, picks one of the three packages already on the site, and pays that price once with PayPal. The owner writes the song by hand, uploads the file from an admin page, and the customer plays and downloads it from My Orders.
+
+**Core Value:** A customer can pay for one song package with PayPal, and the owner can see that order and deliver the song they created.
+
+### Constraints
+
+- **Payments**: PayPal only — the owner chose PayPal as the payment integration
+- **Catalog**: Essential $49, Signature $89, Concierge $149, charged once in USD — these are the packages already on the site
+- **Stack**: Next.js App Router, React, Supabase Auth, Postgres, and Storage — the accounts and database already run there
+- **Price authority**: The server picks the amount from the package key — the browser total can be edited and must not be what PayPal charges
+- **Access**: Customers sign in before paying; the admin page is only for the owner — My Orders and the upload screen need a known person
+- **Delivery**: The owner uploads one finished song per paid order — songs are created manually for now
+<!-- GSD:project-end -->
+
+<!-- GSD:stack-start source:codebase/STACK.md -->
+## Technology Stack
+
+## Languages
+- TypeScript 5.9.3 (locked) — application code under `src/`. `tsconfig.json` sets `"strict": true`, `"jsx": "react-jsx"`, `"moduleResolution": "bundler"`, `"noEmit": true`, and the path alias `@/*` → `./src/*`.
+- SQL — hand-applied schema in `supabase/migrations/done/`. There is no `supabase/config.toml` and no ORM.
+- CSS — Tailwind CSS 4 entry plus site styles. `src/app/globals.css` starts with `@import "tailwindcss"` and then imports `src/styles/oncesung.css`, `src/styles/affiliates.css`, `src/styles/page-extras.css`, and `src/styles/intake.css`.
+- HTML strings — most marketing and checkout screens are static markup exported from `src/data/page-content.ts` (sourced from `src/data/page-html/`). Interactive account, intake, and requests screens ship legacy scripts in `src/features/account/account-script.ts`, `src/features/intake/intake-script.ts`, and `src/features/requests/requests-script.ts`.
+- JavaScript (untyped legacy sources, ignored by ESLint) — `src/features/account/account.raw.js`, `src/features/intake/intake-core.raw.js`, `src/features/intake/intake-ui.raw.js`, `src/features/requests/requests.raw.js`.
+## Runtime
+- Node.js. `package.json` has no `engines` field. Locked `next@16.4.2` requires `node >= 20.9.0`. Locked `@supabase/supabase-js@2.118.0` and `@supabase/storage-js@2.118.0` declare `node >= 22.0.0`. Dev types are `@types/node@20.19.43`. Use Node 22 or newer so the locked Supabase client matches its declared engine. No `.nvmrc` or `.node-version`.
+- npm
+- Lockfile: present — `package-lock.json` (`lockfileVersion` 3). Package name in `package.json` is `vamossy-site` at `0.1.0`, `"private": true`. No `pnpm-lock.yaml` or `yarn.lock`.
+## Frameworks
+- Next.js 16.4.2 — App Router in `src/app/`. Scripts in `package.json`: `next dev`, `next build`, `next start`. Config file `next.config.ts` is an empty `NextConfig` object. Request interception is `src/proxy.ts` (default export `proxy` plus `config.matcher`). There is no `middleware.ts`.
+- React 19.1.0 and `react-dom` 19.1.0 — UI. Auth forms use `useActionState` with server actions in `src/features/auth/actions.ts`.
+- Tailwind CSS 4.3.3 with `@tailwindcss/postcss` 4.3.3 — `postcss.config.mjs` registers the plugin `"@tailwindcss/postcss"` only. Tailwind is a devDependency; layout styling is mostly the imported CSS class system, not utility-only markup.
+- Not detected. `package.json` has no test script and no Jest, Vitest, Playwright, or Testing Library dependency. No `*.test.*` or `*.spec.*` files.
+- TypeScript 5.9.3 — `npm run typecheck` runs `tsc --noEmit`.
+- ESLint 9.39.5 with `eslint-config-next` 16.4.2 — `eslint.config.mjs` spreads `eslint-config-next/core-web-vitals` and `eslint-config-next/typescript`. `npm run lint` runs `eslint .`. Ignores include `src/features/**/*.raw.js` and `src/data/page-html/**`.
+- `next/font/google` — Inter, DM Serif Display, and Caveat in `src/app/layout.tsx`. CSS variables `--font-inter`, `--font-dm-serif`, `--font-caveat` map onto `--sans`, `--serif`, and `--script` in `src/app/globals.css`.
+- `next/og` `ImageResponse` — `src/app/opengraph-image.tsx`, `src/app/icon.tsx`, `src/app/apple-icon.tsx`, `src/lib/brand-mark.tsx`.
+## Key Dependencies
+- `@supabase/supabase-js` 2.118.0 — Auth, Postgres queries, and (via the client) Storage. Server cookie client is `@supabase/ssr` 0.12.7 in `src/lib/supabase/server.ts` and `src/lib/supabase/middleware.ts`. Browser client is `src/lib/supabase/client.ts`. Service-role factory is `src/lib/supabase/admin.ts` and is not imported anywhere else.
+- `zod` 3.25.76 — auth field schemas in `src/lib/auth/schema.ts` and the profile body schema in `src/app/api/account/profile/route.ts`.
+- `react-hook-form` 7.90.0 and `@hookform/resolvers` 5.9.2 — checkout details form only, `src/features/checkout/CheckoutDetailsForm.tsx`, resolved with `zodResolver`.
+- `server-only` 0.0.1 — imported by `src/lib/supabase/admin.ts` and `src/lib/purchases.ts` so those modules cannot be bundled for the browser.
+- `lucide-react` 1.59.0 — icons on the React checkout details form (`src/features/checkout/CheckoutDetailsForm.tsx`). Most other icons are inline SVG in the HTML strings.
+- There is no PayPal, Stripe, Apple Pay, or Google Pay package in `package.json` or `package-lock.json`. No payment, subscription, or webhook environment variable is read anywhere under `src/`.
+- Sellable plans are one-time song packages, not subscriptions. Canonical prices live in `PACKAGES` in `src/lib/store.ts` and are repeated in `src/data/page-html/pricing.html`: Essential $49, Signature $89 (default), Concierge $149. `resolvePackage()` falls back to `"signature"`.
+- Package choice is browser state. `src/components/SiteInteractions.tsx` writes `oncesung:package` through `oncesungStore.set` when a `[data-package]` link or `[data-pkg-group]` control is used, then fills `[data-pkg-name]`, `[data-pkg-price]`, `[data-total]`, and related nodes.
+- Checkout payment is a stub. `src/app/checkout/payment/page.tsx` renders `html_checkout_payment` from `src/data/page-content.ts` (markup in `src/data/page-html/checkout_payment.html`). The form is `form[data-demo]` with `data-next="/order-confirmed"`. `src/components/SiteInteractions.tsx` prevents submit, toasts `Demo only — no payment was processed.`, and calls `router.push`. Card, PayPal, Google Pay, and Apple Pay are visual options only (`data-method="card"|"paypal"|"gpay"|"apple"`). Selecting a wallet toggles `#wallet-note` (“You'll be redirected to …”). Nothing redirects to PayPal or a wallet. `#cc-number` and `#cc-exp` are formatted in the browser and are not posted.
+- Buyer details on `src/app/checkout/details/page.tsx` are saved with `oncesungStore.set("details", …)` in `src/features/checkout/CheckoutDetailsForm.tsx` (localStorage key `oncesung:details`) and then routed to `/checkout/payment`. The form default values are demo data (`Gergely`, `gergely@example.com`). They are not written to Supabase.
+- Gift cards, referrals, affiliates, and the money-back guarantee page are marketing or local-only UI. See INTEGRATIONS.md for the exists-versus-stubbed split.
+- Purchase entitlement schema exists and is unused by the app: `public.purchases` in `supabase/migrations/done/20261021120100_purchases.sql`, reader `listOwnPurchases()` in `src/lib/purchases.ts` (no callers), and private Storage bucket `purchased-songs` in `supabase/migrations/done/20261021120200_purchased_songs_bucket.sql`. `src/data/mock-orders.ts` (`MOCK_ORDERS`) is also unused; dashboard and downloads pages render static HTML.
+- No Redis, queue, email SDK, analytics SDK, or error-tracking SDK.
+- Static example audio is served from `public/examples/*.mp3` (16 files). Download buttons on the downloads page do not point at those files.
+## Configuration
+- Read at runtime. Names only; no committed example file was found. `.gitignore` ignores `.env*`.
+- `NEXT_PUBLIC_SUPABASE_URL` — Supabase project URL. Required by `src/lib/supabase/server.ts`, `src/lib/supabase/client.ts`, `src/lib/supabase/admin.ts`. `src/lib/supabase/middleware.ts` skips session refresh when it is missing.
+- `NEXT_PUBLIC_SUPABASE_ANON_KEY` — Supabase anon key. Same call sites as the URL, except the admin client.
+- `SUPABASE_SERVICE_ROLE_KEY` — service role key for `createAdminClient()` in `src/lib/supabase/admin.ts`. That function is unused, so a missing key does not affect current pages. The purchases migration comment says future inserts and signed URLs must use this key.
+- `NEXT_PUBLIC_SITE_URL` — absolute site origin. `src/app/layout.tsx` falls back to `https://www.oncesung.com`. `src/app/robots.ts` and `src/app/sitemap.ts` fall back to `https://oncesung.com` (no `www`). `src/lib/auth/origin.ts` prefers this value for Supabase email links; if unset, it allows only `localhost` / `127.0.0.1` and otherwise returns `http://localhost:3000`.
+- Google OAuth client id and secret are not in this repo. `googleSignInAction` in `src/features/auth/actions.ts` calls `supabase.auth.signInWithOAuth({ provider: "google" })`. Provider credentials live in the Supabase project.
+- `next.config.ts` — empty Next config.
+- `tsconfig.json` — compiler options above. Includes `next-env.d.ts` (gitignored) and `.next` type roots.
+- `postcss.config.mjs` — Tailwind PostCSS plugin.
+- `eslint.config.mjs` — Next core-web-vitals plus TypeScript.
+- `src/proxy.ts` — matcher excludes `_next/static`, `_next/image`, `favicon.ico`, and static extensions `svg`, `png`, `jpg`, `jpeg`, `gif`, `webp`, `ico`, `mp3`, `wav`.
+- No `vercel.json`, no Dockerfile, no GitHub Actions workflow.
+## Platform Requirements
+- Node 22 or newer (satisfies Next `>=20.9.0` and locked Supabase `>=22`).
+- npm install from `package-lock.json`.
+- A Supabase project with the three SQL files in `supabase/migrations/done/` applied in filename order (comments say to run them in the Supabase SQL editor). Google provider enabled in that project if Google sign-in is used.
+- `NEXT_PUBLIC_SUPABASE_URL` and `NEXT_PUBLIC_SUPABASE_ANON_KEY` set for auth. `NEXT_PUBLIC_SITE_URL` set when email confirmation and password-reset links must leave localhost.
+- Commands: `npm run dev`, `npm run lint`, `npm run typecheck`, `npm run build`.
+- `next build` then `next start`, or a Next.js host. `.gitignore` ignores `.vercel`, and `public/vercel.svg` is the stock Next asset. No deployment manifest is committed.
+- Public site identity in code is Oncesung (`SITE_NAME` in `src/lib/routes.ts`). Metadata base defaults to `https://www.oncesung.com`.
+- Same Supabase env vars as development. Service-role key is only needed once purchase inserts or signed download URLs are implemented.
+- No payment provider account is wired. Checkout cannot charge a card or PayPal until a processor is added.
+<!-- GSD:stack-end -->
+
+<!-- GSD:conventions-start source:CONVENTIONS.md -->
+## Conventions
+
+## Naming Patterns
+- React components: PascalCase, one component family per file. Examples: `src/features/auth/LoginForm.tsx`, `src/components/SiteHeader.tsx`, `src/features/checkout/CheckoutDetailsForm.tsx`.
+- Non-component modules: kebab-case. Examples: `src/lib/run-legacy-script.ts`, `src/features/account/with-account-profile.ts`, `src/lib/auth/require-user.ts`, `src/hooks/use-toast.tsx`.
+- App Router routes: kebab-case directories, file name fixed by Next.js. Examples: `src/app/forgot-password/page.tsx`, `src/app/checkout/details/page.tsx`, `src/app/api/account/profile/route.ts`, `src/app/auth/callback/route.ts`.
+- Request interception lives in `src/proxy.ts` (default export `proxy`). Do not add `middleware.ts`.
+- Generated marketing HTML is `src/data/page-content.ts`. Feature HTML/scripts that are still edited as strings are `*-html.ts` and `*-script.ts` under `src/features/<feature>/`.
+- Legacy script sources `src/features/**/*.raw.js` are not imported. Runtime code uses the string constants. Do not wire `.raw.js` into the app.
+- SQL migrations: `supabase/migrations/done/<YYYYMMDDHHMMSS>_<snake_name>.sql`.
+- camelCase. Verb-first for actions and queries: `loginAction`, `getOwnProfile`, `listOwnPurchases`, `requireUser`, `safeNextPath`, `hrefFromHtml`, `withAccountProfile`, `resolvePackage`.
+- React components and providers: PascalCase, named function declarations. `LoginForm`, `AuthShell`, `ToastProvider`, `HtmlMain`.
+- Hooks: `use` prefix. `useToast` in `src/hooks/use-toast.tsx`.
+- Server Action names end in `Action` when they are form actions (`loginAction`, `googleSignInAction`). `signOut` is the exception: it is a form action with no return state.
+- Module-private helpers stay unexported and camelCase: `sameSiteMessage` in `src/features/auth/actions.ts`, `metadataName` in `src/lib/account/profile.ts`, `escapeHtml` in `src/features/account/with-account-profile.ts`, `isProtected` in `src/lib/supabase/middleware.ts`.
+- Prefix unused parameters with `_`. Server actions take `useActionState`'s previous state as `_prev`.
+- camelCase for locals and props: `nextPath`, `fullName`, `pending`.
+- Module constants that are configuration or copy: SCREAMING_SNAKE. `HTML_TO_PATH`, `NAV_LINKS`, `SITE_NAME`, `MOCK_ORDERS`, `ACCOUNT_HTML`, `INTAKE_SCRIPT`, `PROTECTED` (the last is module-private in `src/lib/supabase/middleware.ts`).
+- The browser store object is camelCase: `oncesungStore` in `src/lib/store.ts`.
+- Storage keys use the prefix `oncesung:` plus a short name (`oncesung:story`, `oncesung:briefs`, `oncesung:package`). Older keys without a colon stay as-is when touching existing data: `oncesung-song-intake-v1` in `src/features/intake/intake-script.ts`, `oncesung-affiliate-draft-v1` in `src/features/affiliates/AffiliatesEnhancer.tsx`.
+- Booleans read as predicates: `signedIn`, `pending`, `remember`. Coerce with `Boolean(...)` when the source is `string | null`.
+- PascalCase `type` aliases. The codebase uses `type`, not `interface`. Examples: `AuthState`, `OwnProfile`, `Purchase`, `FieldErrors`, `FormValues`, `CheckoutStory`, `MockOrder`.
+- String unions for closed sets: `PackageKey = "essential" | "signature" | "concierge"` in both `src/lib/store.ts` and `src/types/index.ts`. Status unions use snake_case members matching stored values: `MockOrderStatus = "in_progress" | "ready" | "completed"` in `src/data/mock-orders.ts`.
+- Props types are inline on the function when they are used once. Extract a named type only when it is reused or the component takes several fields (`Props` in `src/components/LegacyInteractivePage.tsx`).
+- Database rows stay snake_case in TypeScript when they mirror Postgres: `Purchase.song_slug`, `Purchase.order_reference`, `Purchase.created_at` in `src/lib/purchases.ts`. App-facing models are camelCase: `OwnProfile.fullName`. Map at the query boundary (`full_name` → `fullName` in `src/lib/account/profile.ts`).
+- Zod schemas are camelCase consts ending in `Schema`: `loginSchema`, `emailSchema`, `bodySchema`. Infer form types with `z.infer<typeof schema>` (`FormValues` in `src/features/checkout/CheckoutDetailsForm.tsx`).
+- Default-export the page function. Marketing pages that only render HTML use `Page` (`src/app/page.tsx`, `src/app/pricing/page.tsx`). Pages with their own behavior use a specific name: `LoginPage`, `AccountPage`, `RequestsPage`, `SongIntakePage`, `CheckoutDetailsPage`, `RootLayout`.
+## Code Style
+- No Prettier config and no format script. Match the existing TypeScript style:
+- In JSX text, escape apostrophes as `&apos;` (`We&apos;ll` in `src/features/checkout/CheckoutDetailsForm.tsx`).
+- `tsconfig.json` is `strict: true`, `jsx: react-jsx`, `moduleResolution: bundler`, `noEmit: true`, `allowJs: true`. Do not loosen strictness for a new file.
+- Target is ES2017. Optional chaining and nullish coalescing are already used; prefer `??` for defaults (`data.user?.email ?? null` in `src/app/layout.tsx`). Older helpers still use `||` for empty strings (`data?.email || user.email || ""` in `src/lib/account/profile.ts`). Use `||` when an empty string should fall through; use `??` when only `null` and `undefined` should.
+- ESLint 9 flat config in `eslint.config.mjs`. It spreads `eslint-config-next/core-web-vitals` and `eslint-config-next/typescript`. Do not add rule overrides unless a Next.js rule blocks a pattern this repo already uses.
+- Run `npm run lint` (`eslint .`).
+- Ignored paths (do not "fix" them to satisfy lint): `node_modules/**`, `.next/**`, `out/**`, `build/**`, `next-env.d.ts`, `src/features/**/*.raw.js`, `src/data/page-html/**`.
+- `src/data/page-content.ts` is linted but marked `/* Auto-generated from ZIP — do not hand-edit */`. Change routes by editing `src/lib/routes.ts` and the page file, not by rewriting the generated HTML string.
+- Run `npm run typecheck` (`tsc --noEmit`) after type-level edits. There is no combined `check` script.
+- The visual system is the class set in `src/styles/oncesung.css`, `src/styles/affiliates.css`, `src/styles/page-extras.css`, and `src/styles/intake.css`, imported from `src/app/globals.css`. Reuse those classes (`.btn`, `.btn-primary`, `.field`, `.input`, `.card`, `.muted`, `.container`) before adding utilities.
+- Tailwind v4 is imported (`@import "tailwindcss"` in `src/app/globals.css`) and PostCSS is `postcss.config.mjs`. New screens still follow the existing class system. Do not restyle a ZIP page with Tailwind utilities.
+- Small auth-only rules belong at the bottom of `src/app/globals.css` (`.form-error`, `.form-success`, `.auth-or`).
+- One-off layout in React components uses a `style` object, not a new CSS file. See `src/features/auth/AuthShell.tsx` and `src/features/checkout/CheckoutDetailsForm.tsx`.
+- Lucide icons: `size={16}` inside buttons, `size={19}` in icon buttons, `strokeWidth={1.8}`. Import named icons from `lucide-react`.
+- Interactive controls get an accessible name: `<label htmlFor>` matching `id`, `aria-invalid` / `aria-describedby` when a field error exists (`src/features/auth/LoginForm.tsx`), `role="alert"` for errors and `role="status"` for success (`src/features/auth/AuthShell.tsx`).
+## Import Organization
+- `@/` is the only alias. It maps to `src/`. Write `@/lib/auth/redirect`, not a deep relative path.
+- There is no `src/index.ts` barrel. `src/types/index.ts` is the only re-export file. Import the concrete module everywhere else.
+- Two modules export `createClient`. Import the file, not a barrel:
+- `src/lib/store.ts` starts with `"use client"`. Do not import it from a Server Component, Route Handler, or Server Action. Server code that needs package metadata should not pull the store.
+- Add `"use client"` to any file that uses hooks, browser storage, or event handlers. Current client files include `src/features/auth/LoginForm.tsx`, `src/components/SiteHeader.tsx`, `src/components/SiteInteractions.tsx`, `src/hooks/use-toast.tsx`, `src/lib/store.ts`.
+- Add `"use server"` only on the Server Actions module `src/features/auth/actions.ts`. Do not mark a whole feature folder.
+- Add `import "server-only"` to modules that must never reach the browser (`src/lib/supabase/admin.ts`, `src/lib/purchases.ts`).
+## Error Handling
+- Validate with Zod `safeParse`. On failure, return a value. Do not call `parse()` and catch `ZodError`.
+- Auth field errors: `fieldErrors` in `src/lib/auth/schema.ts` keeps the first issue per top-level key and returns `FieldErrors` (`Record<string, string | undefined>`).
+- Server Actions return `AuthState` (`{ error?, success?, fields? }` in `src/features/auth/actions.ts`). They do not throw for bad input or Supabase auth failures. `redirect()` from `next/navigation` is the success path for login, reset, sign-out, and Google OAuth.
+- Map provider errors to short user-facing sentences. Do not return `error.message` from Supabase. Rate limits (`status === 429`, code `over_request_rate_limit`, or a message containing `"rate limit"`) become `"Too many attempts. Wait a minute and try again."` Duplicate registration returns the same success copy as a new signup (`"Check your email to confirm your account."`). Password reset always returns the same success copy unless rate-limited (`src/features/auth/actions.ts`).
+- Route Handlers return `NextResponse.json({ error: "..." }, { status })`. `POST` in `src/app/api/account/profile/route.ts` uses 400 for bad JSON, schema failure, and write failure, and 401 when `getUser()` has no user. Success JSON is camelCase: `{ fullName }`.
+- Auth callback failures redirect, they do not render an error page. `failedRedirect` in `src/app/auth/callback/route.ts` sends Google "already" errors to `/login?error=google`, expired reset links to `/forgot-password?error=expired`, and other failures to `/login?error=link`. Pages translate those codes into copy (`NOTICES` in `src/app/login/page.tsx`).
+- Missing Supabase env throws at client construction: `throw new Error("Missing NEXT_PUBLIC_SUPABASE_URL or ...")` in `src/lib/supabase/server.ts`, `src/lib/supabase/client.ts`, and `src/lib/supabase/admin.ts`. `updateSession` in `src/lib/supabase/middleware.ts` does the opposite: if env is missing it returns `NextResponse.next` and skips protection. Do not copy that skip into a Route Handler.
+- `useToast` throws if called outside `ToastProvider` (`src/hooks/use-toast.tsx`). That is the only hook guard.
+- Expected browser failures return a fallback and swallow the exception: `oncesungStore.get` returns `null`, `set` returns `false` (`src/lib/store.ts`). Empty `catch` blocks use a comment `/* ignore */`.
+- `src/app/layout.tsx` wraps `getUser()` in try/catch and treats failure as signed-out (`email = null`) so the shell still renders.
+- `cookies().set` inside Server Components is allowed to fail. The empty catch in `src/lib/supabase/server.ts` stays: session refresh belongs to `src/proxy.ts`.
+- Legacy script failures log and allow a retry: `runLegacyScript` deletes the label from its set and calls `console.error` (`src/lib/run-legacy-script.ts`).
+- Queries that should degrade: `listOwnPurchases` returns `[]` when signed out or when Supabase returns `error` (`src/lib/purchases.ts`). `getOwnProfile` returns `null` when signed out.
+- HTML spliced from user data goes through `escapeHtml` first (`src/features/account/with-account-profile.ts`). JSON embedded in HTML escapes `<` as `\u003c`.
+- Gate a signed-in page with `await requireUser("/that-path")` from `src/lib/auth/require-user.ts` before reading data. It redirects to `/login?next=...` using `safeNextPath`.
+- Also list the path in `PROTECTED` inside `src/lib/supabase/middleware.ts`. The proxy and the page guard are both required. Current paths: `/account`, `/dashboard`, `/downloads`, `/song-player`, `/requests`.
+- Any `next` query value passes through `safeNextPath` (`src/lib/auth/redirect.ts`) before `redirect()` or a `Location` header. It allows only same-origin paths and rejects protocol-relative URLs, backslashes, and `/login`, `/register`, `/forgot-password`.
+## Logging
+- Do not add info or debug logs. The only application log is `console.error(\`[oncesung] legacy script failed: ${label}\`, err)` in `src/lib/run-legacy-script.ts`.
+- Prefix any new operational error with `[oncesung]` and a short subject. Log the caught value as a second argument, not interpolated into the string.
+- Do not log emails, passwords, tokens, or service-role keys.
+## Comments
+- Comment why, in one line, when the next reader would otherwise "fix" the code. Examples: the cookie `setAll` catch in `src/lib/supabase/server.ts`, the ZIP link rewrite in `src/components/SiteInteractions.tsx`, the auto-generated banner in `src/data/page-content.ts`.
+- Section markers inside long imperative effects are block comments: `/* Waveforms + playback. */` in `src/components/SiteInteractions.tsx`. Use that style only inside a long `useEffect` that wires DOM behavior. Do not add them to Server Actions or Zod schemas.
+- Do not comment obvious control flow. Do not add file banners.
+- Use a single `/** ... */` line on an export whose contract is not obvious from the name:
+- Mock data is labeled in the comment: `/** MOCK — local demo orders only */` on `MOCK_ORDERS` in `src/data/mock-orders.ts`. Keep that label if the data stays fake.
+- Do not write `@param` blocks. Types carry the signature.
+## Function Design
+- Keep a function to one job and return early. Auth actions follow parse → client call → map error → `redirect` (`src/features/auth/actions.ts`).
+- Page files stay thin. A marketing page exports `metadata` and renders one host:
+- Server Actions used with `useActionState` have the signature `(prev: AuthState, formData: FormData) => Promise<AuthState>`. Name the unused state `_prev`.
+- Read form fields with `formData.get("email")` and let Zod coerce. Input `name` attributes match schema keys (`fullName`, `confirmPassword`, `next`).
+- Component props are a single inline object. Required props are not given defaults. Defaults live on the destructure when the call site can omit them: `Logo({ href = "/" })` in `src/components/Logo.tsx`, `safeNextPath(..., fallback = FALLBACK)`.
+- Next.js 16 page props are async. `searchParams` is a `Promise` (`src/app/login/page.tsx`):
+- `cookies()` and `headers()` are async. `await cookies()` in `src/lib/supabase/server.ts`, `await headers()` in `src/lib/auth/origin.ts`.
+- Declare the return type on exported async functions that callers branch on: `Promise<AuthState>`, `Promise<OwnProfile | null>`, `Promise<Purchase[]>`.
+- Absence is `null` for a single record (`getOwnProfile`) and `[]` for a list (`listOwnPurchases`).
+- Boolean results mean "the write landed" (`oncesungStore.set` returns `boolean`).
+- Do not return raw Supabase `{ data, error }` from `src/lib`. Map it.
+- Auth schemas that more than one action shares live in `src/lib/auth/schema.ts`.
+- A schema used by one form or one route stays in that file: `schema` in `src/features/checkout/CheckoutDetailsForm.tsx`, `bodySchema` in `src/app/api/account/profile/route.ts`.
+- Reuse `emailSchema` and `passwordSchema` for new auth fields. Password max is 72. Display name max is 100, matching the `profiles_full_name_length` check in `supabase/migrations/done/20261021120000_profiles.sql`.
+- Credential forms: native `<form action={action}>`, `useActionState`, no `react-hook-form`. See `src/features/auth/LoginForm.tsx`. Disable the submit button while `pending` and change its label (`"Signing in…"`).
+- Client-only checkout state: `useForm` + `zodResolver`, then `oncesungStore.set` and `router.push`. See `src/features/checkout/CheckoutDetailsForm.tsx`.
+- ZIP wizards (intake, account, requests) stay imperative strings executed by `LegacyInteractivePage`. Do not rewrite them as controlled React inputs in a drive-by change.
+- Enhancers that attach to generated HTML use `useEffect` plus `getElementById` and return a cleanup. See `src/features/affiliates/AffiliatesEnhancer.tsx` and the `on(...)` helper in `src/components/SiteInteractions.tsx`.
+## Module Design
+- Named exports for components, hooks, actions, and lib functions.
+- Default export only where Next.js requires it: `page.tsx`, `layout.tsx`, `src/proxy.ts`, `src/app/robots.ts`, `src/app/sitemap.ts`, `src/app/icon.tsx`, `src/app/apple-icon.tsx`, `src/app/opengraph-image.tsx`. Route handlers export named `GET` / `POST`, not default.
+- Export a `const metadata: Metadata` (or `MetadataRoute.*` for robots and sitemap) from every page. Titles are short; the root template in `src/app/layout.tsx` appends ` · ${SITE_NAME}`.
+- Colocate the type with the function that produces it (`AuthState` next to the actions, `Purchase` next to `listOwnPurchases`). Re-export from `src/types/index.ts` only when another layer already imports from that barrel.
+- `PackageKey` is declared in both `src/lib/store.ts` and `src/types/index.ts`. If the union changes, update both, plus `PACKAGES` and `resolvePackage`.
+- Route file under `src/app/<segment>/`: metadata, auth gate, and one child component. No business logic.
+- Feature UI and actions: `src/features/<feature>/`.
+- Shared helpers with no UI: `src/lib/<area>/`.
+- Site chrome and HTML hosts: `src/components/`.
+- Cross-page copy and the legacy path map: `src/lib/routes.ts` (`SITE_NAME`, `NAV_LINKS`, `HTML_TO_PATH`).
+- Static demo orders: `src/data/mock-orders.ts`. Do not present them as database rows.
+- Do not add `index.ts` barrels under `src/features`, `src/components`, or `src/lib`.
+- The only barrel is `src/types/index.ts`. It re-exports `MockOrder` and `MockOrderStatus` and declares `PackageKey` and `CheckoutStory`.
+- Postgres identifiers are snake_case. SQL in `supabase/migrations/done/` is lowercase keywords, with a file-top comment describing who can read and write the table.
+- New migrations stay in filename order under `supabase/migrations/done/` and are written to run once in the Supabase SQL editor. Do not edit a migration that has already been applied; add a new timestamped file.
+- Client writes go through the signed-in server client (`src/lib/supabase/server.ts`) so RLS applies. `createAdminClient` bypasses RLS. Do not call it from a form or a Client Component.
+<!-- GSD:conventions-end -->
+
+<!-- GSD:architecture-start source:ARCHITECTURE.md -->
+## Architecture
+
+## System Overview
+```text
+```
+## Component Responsibilities
+| Component | Responsibility | File |
+|-----------|----------------|------|
+| Root layout | Fonts, metadata, header/footer, toast provider, signed-in email | `src/app/layout.tsx` |
+| Request proxy | Session refresh and route gates on every non-static request | `src/proxy.ts` |
+| Session gate | Cookie client, protected and guest-only redirects | `src/lib/supabase/middleware.ts` |
+| HTML page body | Inject rewritten marketing HTML | `src/components/HtmlMain.tsx` |
+| Page HTML catalog | One exported string per marketing and checkout screen | `src/data/page-content.ts` |
+| Site behaviors | Audio, filters, package picker, story fill, demo forms | `src/components/SiteInteractions.tsx` |
+| Browser store | `oncesung:` localStorage JSON, with sessionStorage fallback on read | `src/lib/store.ts` |
+| Package catalog | Essential $49, Signature $89, Concierge $149 | `src/lib/store.ts` |
+| Legacy mount | Inject HTML, run one script, clear on unmount | `src/components/LegacyInteractivePage.tsx` |
+| Script runner | Patch storage, rewrite `.html` navigations, `new Function` | `src/lib/run-legacy-script.ts` |
+| Song intake | Five-step brief, local draft, handoff to checkout review | `src/features/intake/intake-script.ts`, `src/features/intake/shell.ts` |
+| Checkout details | React Hook Form contact step, writes `details`, routes to payment | `src/features/checkout/CheckoutDetailsForm.tsx` |
+| Auth actions | Email, Google, reset, sign-out | `src/features/auth/actions.ts` |
+| Auth callback | Exchange the Supabase code and backfill an empty profile name | `src/app/auth/callback/route.ts` |
+| Account page | Require a user, inject profile into legacy HTML | `src/app/account/page.tsx`, `src/features/account/with-account-profile.ts` |
+| Profile API | Authenticated `full_name` update | `src/app/api/account/profile/route.ts` |
+| Profile read | `profiles` row, else auth metadata | `src/lib/account/profile.ts` |
+| Purchase read | Own `purchases` rows; no caller yet | `src/lib/purchases.ts` |
+| Service-role client | Bypass RLS for future server inserts and signed URLs | `src/lib/supabase/admin.ts` |
+| Route map | Legacy HTML filenames to App Router paths | `src/lib/routes.ts` |
+| Orders UI data | Static dashboard cards inside HTML; `MOCK_ORDERS` is unused by pages | `src/data/page-html/dashboard.html`, `src/data/mock-orders.ts` |
+## Pattern Overview
+- A route file in `src/app/<route>/page.tsx` is a thin server component. Marketing routes return `<HtmlMain html={html_…} />`.
+- Interactive marketing behavior is not React state. `SiteInteractions` in `src/components/SiteInteractions.tsx` queries the DOM on every pathname change.
+- Wizards that cannot be expressed as static HTML mount through `LegacyInteractivePage` and a string script.
+- Auth, profile name, and the future purchase ledger are server-side. The creative brief and the chosen package are client-side.
+- Checkout payment is a demo. `form[data-demo]` never charges a card and never writes `public.purchases`.
+## Layers
+- Purpose: One URL per screen, metadata, and the correct mount (HTML, React form, or legacy wizard).
+- Location: `src/app/`
+- Contains: `page.tsx` route modules, `layout.tsx`, `sitemap.ts`, `robots.ts`, icon routes, one API route, the auth callback.
+- Depends on: `src/data/page-content.ts`, `src/features/`, `src/components/`, `src/lib/auth/require-user.ts`
+- Used by: The browser and the request proxy.
+- Purpose: Make injected HTML interactive and keep checkout progress on the device.
+- Location: `src/components/SiteInteractions.tsx`, `src/lib/store.ts`, `src/components/LegacyInteractivePage.tsx`, `src/lib/run-legacy-script.ts`
+- Contains: DOM listeners, `oncesungStore`, script evaluation.
+- Depends on: DOM produced by `HtmlMain` or a legacy shell.
+- Used by: Every page under the root layout, because `SiteInteractions` is mounted once in `src/app/layout.tsx`.
+- Purpose: Typed React for auth and the details step; string HTML/JS for intake, account, and requests.
+- Location: `src/features/auth/`, `src/features/checkout/`, `src/features/account/`, `src/features/intake/`, `src/features/requests/`, `src/features/affiliates/`
+- Contains: Server actions, forms, HTML string exports, script string exports.
+- Depends on: `src/lib/supabase/server.ts`, `src/lib/auth/schema.ts`, `src/lib/store.ts`
+- Used by: The matching `src/app/**/page.tsx` files.
+- Purpose: Cookie-bound Supabase client, service-role client, profile and purchase reads.
+- Location: `src/lib/supabase/`, `src/lib/account/profile.ts`, `src/lib/purchases.ts`
+- Contains: `createClient` helpers and row types.
+- Depends on: `@supabase/ssr` and `@supabase/supabase-js`
+- Used by: Layout, auth actions, callback, profile API, `requireUser`. `listOwnPurchases` and `createAdminClient` are ready for a later payment route and have no callers.
+- Purpose: One profile per auth user, a purchase ledger the user can only read, a private audio bucket.
+- Location: `supabase/migrations/done/`
+- Contains: `20261021120000_profiles.sql`, `20261021120100_purchases.sql`, `20261021120200_purchased_songs_bucket.sql`
+- Depends on: Supabase Auth (`auth.users`) and Storage.
+- Used by: The server client under the anon key plus RLS. Inserts into `purchases` are specified for the service role only.
+## Data Flow
+### Primary request path (marketing page)
+### Package, brief, and payment
+### Account and sign-in
+### Orders, player, downloads, requests
+- Server session: Supabase auth cookies, refreshed in `src/lib/supabase/middleware.ts`. Server Components call `getUser()` and swallow cookie writes (`src/lib/supabase/server.ts`).
+- Commerce and creative state: `oncesungStore` keys `package`, `story`, `details`, plus raw keys `oncesung:brief`, `oncesung:briefs`, `oncesung:profile` (phone), `oncesung:requests`, `oncesung:edit-brief`, and `oncesung-song-intake-v1`.
+- UI toast: React context in `src/hooks/use-toast.tsx`. Intake and account scripts also create their own DOM toasts.
+- Affiliate application draft: `oncesung-affiliate-draft-v1` in `src/features/affiliates/AffiliatesEnhancer.tsx`. The earnings widget multiplies orders by the selected package price by 25% in the browser. Submit does not call an API.
+## Key Abstractions
+- Purpose: A marketing or checkout screen whose body is a string.
+- Examples: `src/app/page.tsx`, `src/app/pricing/page.tsx`, `src/app/checkout/review/page.tsx`, `src/app/checkout/payment/page.tsx`, `src/app/order-confirmed/page.tsx`
+- Pattern: Import `html_<snake>` from `src/data/page-content.ts`. Export `metadata`. Return `<HtmlMain html={…} />`. Add behavior with `data-*` hooks that `SiteInteractions` already understands, or a sibling client enhancer like `AffiliatesEnhancer`.
+- Purpose: HTML plus an imperative script that must run after the nodes exist.
+- Examples: `src/app/song-intake/page.tsx`, `src/app/account/page.tsx`, `src/app/requests/page.tsx`
+- Pattern: Pass `html`, `script`, and a stable `label`. The effect sets `innerHTML`, then `runLegacyScript`. Cleanup calls `clearLegacyLabel(label)`.
+- Purpose: JSON documents for checkout progress that must survive a full navigation.
+- Examples: `src/lib/store.ts`, `src/components/SiteInteractions.tsx`, `src/features/checkout/CheckoutDetailsForm.tsx`
+- Pattern: `oncesungStore.set(key, value)` writes `localStorage["oncesung:" + key]`. `get` reads localStorage, then sessionStorage. Do not store card numbers or passwords here.
+- Purpose: Server-component gate that matches the proxy.
+- Examples: `src/lib/auth/require-user.ts`, `src/app/account/page.tsx`, `src/app/dashboard/page.tsx`, `src/app/downloads/page.tsx`, `src/app/song-player/page.tsx`, `src/app/requests/page.tsx`
+- Pattern: `await requireUser("/the-path")` redirects to `/login?next=` when `getUser()` is empty.
+- Purpose: User-scoped reads and auth mutations under RLS.
+- Examples: `src/lib/supabase/server.ts`, `src/features/auth/actions.ts`, `src/lib/account/profile.ts`, `src/lib/purchases.ts`
+- Pattern: `const supabase = await createClient()` inside a server action, route handler, or server component. Use `createAdminClient` only on the server, and only for writes the user is not allowed to make (purchase inserts, signed download URLs).
+- Purpose: The creative interview, schema `oncesung-song-brief/3`, produced by `pack()` inside `src/features/intake/intake-script.ts`.
+- Examples: Intake script, account script (`oncesung:briefs`), requests script (song titles from briefs).
+- Pattern: The object is browser-local. Checkout review receives a shortened `story` (`occasion`, `recipient`, `relationship`, `date`, `genre`, `mood`, `moments`, `details`), typed loosely as `CheckoutStory` in `src/types/index.ts`. The full brief JSON is `oncesung:brief`.
+## Entry Points
+- Location: `src/proxy.ts`
+- Triggers: Every request except `_next/static`, `_next/image`, `favicon.ico`, and static image/audio extensions (matcher in that file).
+- Responsibilities: Delegate to `updateSession`. If `NEXT_PUBLIC_SUPABASE_URL` or `NEXT_PUBLIC_SUPABASE_ANON_KEY` is missing, the proxy continues with no auth redirect.
+- Location: `src/app/layout.tsx`
+- Triggers: Every page render.
+- Responsibilities: Fonts, default metadata (`NEXT_PUBLIC_SITE_URL` or `https://www.oncesung.com`), chrome, toast, one session read for the header email.
+- Location: `src/app/**/page.tsx`
+- Triggers: Navigation.
+- Responsibilities: Metadata plus one of the three mount styles above. Protected pages also call `requireUser`.
+- Location: `src/app/auth/callback/route.ts`
+- Triggers: Supabase email and Google redirect with `code` and optional `next`.
+- Responsibilities: Session exchange, empty-name profile backfill, redirect. Failures go to `/login?error=link`, `/login?error=google`, or `/forgot-password?error=expired`.
+- Location: `src/app/api/account/profile/route.ts`
+- Triggers: Account script `fetch("/api/account/profile", { method: "POST" })`.
+- Responsibilities: Zod-check `fullName` (max 100), require a user, update `profiles.full_name`.
+- Location: `src/app/sitemap.ts`, `src/app/robots.ts`, `src/app/icon.tsx`, `src/app/apple-icon.tsx`, `src/app/opengraph-image.tsx`
+- Triggers: Crawlers and browsers requesting icons or `sitemap.xml`.
+- Responsibilities: Public URL list and brand images from `src/lib/brand-mark.tsx`.
+## Architectural Constraints
+- **Threading:** Node handles each request on the server runtime. There are no worker threads. Legacy scripts and `SiteInteractions` run on the browser main thread. `runLegacyScript` is synchronous.
+- **Global state:** `ranLabels` in `src/lib/run-legacy-script.ts` remembers which wizard script already ran in the tab. `window.__oncesungStoragePatched` wraps `sessionStorage.setItem` so `oncesung:` keys also land in `localStorage`. Checkout keys in `localStorage` are shared across tabs. Server modules do not keep a Supabase singleton; `createClient` and `createAdminClient` build a client per call.
+- **Circular imports:** Not detected. Pages import features and `src/data/page-content.ts`. Features import `src/lib/`. `src/lib/` does not import `src/app/` or `src/features/`.
+- **Proxy plus page gate:** A protected URL needs both an entry in `PROTECTED` (`src/lib/supabase/middleware.ts`) and `requireUser` in the page. The proxy redirects before render and refreshes cookies. `requireUser` is the server-component check.
+- **RLS write boundary:** The browser and the anon server client cannot insert `purchases` or change `profiles.email`. Purchase inserts and signed URLs belong in a server route that calls `createAdminClient`.
+- **Package price has two sources:** Runtime totals use `PACKAGES` in `src/lib/store.ts`. The visible price cards are HTML strings. Requests limits are a third copy in `src/features/requests/requests-script.ts`.
+- **Wizard scripts are strings:** `src/features/intake/intake-core.raw.js`, `src/features/intake/intake-ui.raw.js`, `src/features/account/account.raw.js`, and `src/features/requests/requests.raw.js` are the readable sources. The running code is the template string in `intake-script.ts`, `account-script.ts`, and `requests-script.ts`. `rewriteLegacyNavInSource` only rewrites those strings at runtime. Edit the string the page imports, or the page will not change.
+- **HTML files are not the runtime catalog:** Routes import `src/data/page-content.ts`. Files in `src/data/page-html/` are the readable copies, including duplicate names (`checkout_review.html` and `checkout__review.html`). A page will not pick up an edit that lands only in `page-html/`.
+- **Checkout is unsigned:** Package, story, details, and the demo payment form do not require a session. Account briefs are per browser, not per `auth.users` id.
+- **Next.js 16 proxy file:** Session interception lives in `src/proxy.ts` (default export `proxy` plus `config.matcher`), not in a `middleware.ts` file.
+## Anti-Patterns
+### Recording a sale from the demo payment form
+### Treating localStorage briefs as the user record
+### Adding a protected screen without the proxy list
+### Importing `page-html` or `.raw.js` from a route
+### Re-running a legacy script without clearing its label
+### Calling the browser Supabase client for account writes
+## Error Handling
+- Server actions in `src/features/auth/actions.ts` return `AuthState` (`error`, `success`, `fields`) from Zod via `fieldErrors`, or `redirect` on success. Rate limits become “Too many attempts…”. Duplicate sign-up returns the same confirm-email success string as a new account. `signInWithPassword` failures become “Email or password is incorrect.” or the confirm-email message. Other auth failures are generic.
+- `safeNextPath` rejects protocol-relative, external, and auth-page next values so redirects stay in the app (`src/lib/auth/redirect.ts`).
+- `GET` `src/app/auth/callback/route.ts` redirects to a login or forgot-password error query when `code` is missing or `exchangeCodeForSession` fails.
+- `POST` `src/app/api/account/profile/route.ts` returns JSON `{ error }` with status 400 or 401, or `{ fullName }` on success.
+- `getOwnProfile` and `listOwnPurchases` return `null` or `[]` when the user is signed out or the query errors.
+- `src/app/layout.tsx` catches `getUser()` failures and renders the signed-out header.
+- `requireUser` uses `redirect`, which throws the Next navigation error.
+- `runLegacyScript` logs `console.error("[oncesung] legacy script failed: …")` and removes the label so a later mount can retry.
+- Demo forms and `data-toast` buttons surface copy through `useToast`. They are not error reports.
+## Cross-Cutting Concerns
+<!-- GSD:architecture-end -->
+
+<!-- GSD:skills-start source:skills/ -->
+## Project Skills
+
+No project skills found. Add skills to any of: `.claude/skills/`, `.agents/skills/`, `.cursor/skills/`, `.github/skills/`, or `.codex/skills/` with a `SKILL.md` index file.
+<!-- GSD:skills-end -->
+
+<!-- GSD:workflow-start source:GSD defaults -->
+## GSD Workflow Enforcement
+
+Before using Edit, Write, or other file-changing tools, start work through a GSD command so planning artifacts and execution context stay in sync.
+
+Use these entry points:
+- `/gsd-quick` for small fixes, doc updates, and ad-hoc tasks
+- `/gsd-debug` for investigation and bug fixing
+- `/gsd-execute-phase` for planned phase work
+
+Do not make direct repo edits outside a GSD workflow unless the user explicitly asks to bypass it.
+<!-- GSD:workflow-end -->
+
+
+
+<!-- GSD:profile-start -->
+## Developer Profile
+
+> Profile not yet configured. Run `/gsd-profile-user` to generate your developer profile.
+> This section is managed by `generate-claude-profile` -- do not edit manually.
+<!-- GSD:profile-end -->

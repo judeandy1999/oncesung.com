@@ -10,7 +10,7 @@ import { MOBILE_EXTRA_LINKS, NAV_LINKS } from "@/lib/routes";
 
 const ACCOUNT_HREFS = new Set(["/account", "/dashboard", "/requests"]);
 
-export function SiteHeader({ email }: { email: string | null }) {
+export function SiteHeader({ email, isAdmin = false }: { email: string | null; isAdmin?: boolean }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const signedIn = Boolean(email);
@@ -19,6 +19,7 @@ export function SiteHeader({ email }: { email: string | null }) {
     ? [
         { href: "/account", label: "My Account" },
         { href: "/dashboard", label: "My Orders" },
+        ...(isAdmin ? [{ href: "/admin/orders", label: "Song orders" }] : []),
         { href: "/requests", label: "Revisions & Remakes" },
       ]
     : [
@@ -64,6 +65,11 @@ export function SiteHeader({ email }: { email: string | null }) {
               </Link>
             </>
           )}
+          {isAdmin ? (
+            <Link className="btn btn-ghost btn-sm" href="/admin/orders">
+              Orders
+            </Link>
+          ) : null}
           <Link className="btn btn-primary btn-sm" href="/song-intake">
             Create a Song
           </Link>

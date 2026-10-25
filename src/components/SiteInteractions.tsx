@@ -3,6 +3,8 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useToast } from "@/hooks/use-toast";
+import { checkoutStepHref } from "@/features/checkout/checkout-steps";
+import { isCheckoutStepNavigable, type CheckoutStep } from "@/features/checkout/CheckoutStepper";
 import { PACKAGES, oncesungStore, resolvePackage, type PackageKey } from "@/lib/store";
 import { hrefFromHtml } from "@/lib/routes";
 
@@ -531,6 +533,34 @@ export function SiteInteractions() {
           o.classList.toggle("hide", f !== "all" && o.dataset.status !== f),
         );
       });
+    }
+
+    /* Checkout review (HTML): make stepper steps clickable like React checkout pages */
+    if (pathname === "/checkout/review") {
+      const stepper = $(".stepper");
+      if (stepper && !stepper.closest("[data-checkout-stepper-managed]")) {
+        const current: CheckoutStep = 1;
+        const orderId = oncesungStore.get<string>("pending-order");
+        $$(".step", stepper).forEach((el, index) => {
+          const step = (index + 1) as CheckoutStep;
+          const href = checkoutStepHref(step, orderId);
+          if (!isCheckoutStepNavigable(step, current, href)) return;
+          el.classList.add("step-link");
+          el.style.cursor = "pointer";
+          el.setAttribute("role", "link");
+          el.setAttribute("tabindex", "0");
+          const go = () => {
+            if (href) router.push(href);
+          };
+          on(el, "click", go);
+          on(el, "keydown", (e) => {
+            if ((e as KeyboardEvent).key === "Enter" || (e as KeyboardEvent).key === " ") {
+              e.preventDefault();
+              go();
+            }
+          });
+        });
+      }
     }
 
     /* Demo forms — no real payment/email/auth */

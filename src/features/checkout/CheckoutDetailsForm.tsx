@@ -8,6 +8,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { ArrowLeft, ArrowRight } from "lucide-react";
 import { oncesungStore } from "@/lib/store";
+import { CheckoutStepperSection } from "@/features/checkout/CheckoutStepperSection";
+import { createCheckoutOrder, readCheckoutDetails, type CheckoutDetails } from "@/features/checkout/saved-order";
 
 const schema = z.object({
   fullName: z.string().min(2, "Please enter your name"),
@@ -21,27 +23,29 @@ const schema = z.object({
 
 type FormValues = z.infer<typeof schema>;
 
-const defaults: FormValues = {
-  fullName: "Gergely",
-  email: "gergely@example.com",
+const emptyDetails: FormValues = {
+  fullName: "",
+  email: "",
   updates: true,
-  isGift: true,
-  recipient: "Jess",
+  isGift: false,
+  recipient: "",
   relationship: "Partner",
-  notes: "She loves our dog Max and our travels. Keep it romantic and positive.",
+  notes: "",
 };
 
-function readSavedDetails(): Partial<FormValues> | null {
-  return oncesungStore.get<Partial<FormValues>>("details");
-}
-
-export function CheckoutDetailsForm() {
+export function CheckoutDetailsForm({
+  accountName = "",
+  accountEmail = "",
+  pendingOrderId = null,
+}: {
+  accountName?: string;
+  accountEmail?: string;
+  pendingOrderId?: string | null;
+}) {
   const router = useRouter();
-  const [notesLen, setNotesLen] = useState(() => {
-    if (typeof window === "undefined") return defaults.notes?.length ?? 0;
-    const saved = readSavedDetails();
-    return (saved?.notes ?? defaults.notes ?? "").length;
-  });
+  const [notesLen, setNotesLen] = useState(0);
+  const [saving, setSaving] = useState(false);
+  const [formError, setFormError] = useState("");
 
   const {
     register,
@@ -50,19 +54,42 @@ export function CheckoutDetailsForm() {
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: defaults,
+    defaultValues: emptyDetails,
   });
 
   useEffect(() => {
-    const saved = readSavedDetails();
-    if (saved) reset({ ...defaults, ...saved });
-  }, [reset]);
+    const saved = readCheckoutDetails();
+    const next: FormValues = {
+      ...emptyDetails,
+      fullName: saved?.fullName || accountName,
+      email: saved?.email || accountEmail,
+      updates: saved?.updates ?? true,
+      isGift: saved?.isGift ?? false,
+      recipient: saved?.recipient || "",
+      relationship: saved?.relationship || "Partner",
+      notes: saved?.notes || "",
+    };
+    reset(next);
+    setNotesLen(next.notes?.length ?? 0);
+  }, [accountEmail, accountName, reset]);
 
   const notesReg = register("notes");
 
-  const onSubmit = (values: FormValues) => {
-    oncesungStore.set("details", values);
-    router.push("/checkout/payment");
+  const onSubmit = async (values: FormValues) => {
+    setFormError("");
+    setSaving(true);
+    oncesungStore.set("details", values satisfies CheckoutDetails);
+    const result = await createCheckoutOrder(values);
+    setSaving(false);
+    if ("id" in result) {
+      router.push(`/checkout/payment?order=${encodeURIComponent(result.id)}`);
+      return;
+    }
+    if (result.status === 401) {
+      router.push(`/login?next=${encodeURIComponent("/checkout/details")}`);
+      return;
+    }
+    setFormError(result.error);
   };
 
   return (
@@ -74,27 +101,7 @@ export function CheckoutDetailsForm() {
         }}
       >
         <div className="container">
-          <div className="stepper">
-            <div className="step done">
-              <span className="n">✓</span>
-              <span className="lbl-t">Package</span>
-            </div>
-            <div className="step-line done" />
-            <div className="step cur">
-              <span className="n">2</span>
-              <span className="lbl-t">Your Details</span>
-            </div>
-            <div className="step-line" />
-            <div className="step">
-              <span className="n">3</span>
-              <span className="lbl-t">Payment</span>
-            </div>
-            <div className="step-line" />
-            <div className="step">
-              <span className="n">4</span>
-              <span className="lbl-t">Review</span>
-            </div>
-          </div>
+          <CheckoutStepperSection current={2} orderId={pendingOrderId} />
 
           <form
             className="split"
@@ -187,10 +194,16 @@ export function CheckoutDetailsForm() {
                 <Link className="back" href="/checkout/review">
                   <ArrowLeft size={16} strokeWidth={1.8} /> Back
                 </Link>
-                <button className="btn btn-primary btn-lg" type="submit">
-                  Next Step: Payment <ArrowRight size={16} strokeWidth={1.8} />
+                <button className="btn btn-primary btn-lg" type="submit" disabled={saving}>
+                  {saving ? "Opening payment…" : "Next Step: Payment"}{" "}
+                  <ArrowRight size={16} strokeWidth={1.8} />
                 </button>
               </div>
+              {formError ? (
+                <p className="small" style={{ color: "var(--coral-ink)" }}>
+                  {formError}
+                </p>
+              ) : null}
             </div>
             <div>
               <div style={{ position: "relative" }}>

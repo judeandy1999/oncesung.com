@@ -63,3 +63,17 @@
 }
 
 /* Hide pages that intentionally omit site chrome (none currently) */
+
+.orders-layout {
+  display: grid;
+  grid-template-columns: 230px minmax(0, 1fr);
+  gap: 26px;
+  align-items: start;
+}
+
+@media (max-width: 800px) {
+  .orders-layout {
+    grid-template-columns: 1fr;
+  }
+}
+

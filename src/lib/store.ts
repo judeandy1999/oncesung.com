@@ -1,5 +1,7 @@
 "use client";
 
+import { PACKAGE_CATALOG, isPackageKey, type PackageKey } from "@/lib/orders/catalog";
+
 const PREFIX = "oncesung:";
 
 function readRaw(key: string): string | null {
@@ -45,21 +47,21 @@ export const oncesungStore = {
   },
 };
 
-export type PackageKey = "essential" | "signature" | "concierge";
+export type { PackageKey };
 
 export const PACKAGES: Record<
   PackageKey,
   { name: string; price: number; delivery: string; features: string[] }
 > = {
   essential: {
-    name: "Essential",
-    price: 49,
+    name: PACKAGE_CATALOG.essential.name,
+    price: PACKAGE_CATALOG.essential.amountCents / 100,
     delivery: "48-hour delivery",
     features: ["1 finished song", "Custom lyrics", "1 minor revision", "MP3 download", "48-hour delivery"],
   },
   signature: {
-    name: "Signature",
-    price: 89,
+    name: PACKAGE_CATALOG.signature.name,
+    price: PACKAGE_CATALOG.signature.amountCents / 100,
     delivery: "72-hour delivery",
     features: [
       "Personalized song (up to 3 remakes)",
@@ -70,8 +72,8 @@ export const PACKAGES: Record<
     ],
   },
   concierge: {
-    name: "Concierge",
-    price: 149,
+    name: PACKAGE_CATALOG.concierge.name,
+    price: PACKAGE_CATALOG.concierge.amountCents / 100,
     delivery: "72-hour delivery",
     features: [
       "Everything in Signature",
@@ -84,6 +86,5 @@ export const PACKAGES: Record<
 };
 
 export function resolvePackage(key: string | null | undefined): PackageKey {
-  if (key === "essential" || key === "signature" || key === "concierge") return key;
-  return "signature";
+  return isPackageKey(key) ? key : "signature";
 }

@@ -4,6 +4,7 @@ import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteInteractions } from "@/components/SiteInteractions";
 import { ToastProvider } from "@/hooks/use-toast";
+import { isAdminEmail } from "@/lib/orders/admin";
 import { SITE_NAME, SITE_TAGLINE } from "@/lib/routes";
 import { createClient } from "@/lib/supabase/server";
 import "./globals.css";
@@ -56,7 +57,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
     <html lang="en">
       <body className={`${inter.variable} ${dmSerif.variable} ${caveat.variable}`}>
         <ToastProvider>
-          <SiteHeader email={email} />
+          <SiteHeader email={email} isAdmin={isAdminEmail(email)} />
           {children}
           <SiteFooter email={email} />
           <SiteInteractions />

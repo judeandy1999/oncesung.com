@@ -59,12 +59,31 @@ None. Items set aside for this version are listed under Out of Scope.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
+| SONG-01 | Phase 1 | Pending |
+| SONG-02 | Phase 1 | Pending |
+| SONG-03 | Phase 1 | Pending |
+| PAY-01 | Phase 1 | Pending |
+| PAY-02 | Phase 1 | Pending |
+| PAY-03 | Phase 1 | Pending |
+| PAY-04 | Phase 1 | Pending |
+| PAY-05 | Phase 1 | Pending |
+| ORD-01 | Phase 2 | Pending |
+| ORD-02 | Phase 2 | Pending |
+| ORD-03 | Phase 2 | Pending |
+| ORD-04 | Phase 2 | Pending |
+| ORD-05 | Phase 2 | Pending |
+| ADM-01 | Phase 3 | Pending |
+| ADM-02 | Phase 3 | Pending |
+| ADM-03 | Phase 3 | Pending |
+| DLV-01 | Phase 3 | Pending |
+| DLV-02 | Phase 3 | Pending |
+| DLV-03 | Phase 3 | Pending |
 
 **Coverage:**
 - v1 requirements: 19 total
-- Mapped to phases: 0
-- Unmapped: 19
+- Mapped to phases: 19
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-10-25*
-*Last updated: 2026-10-25 after initial definition*
+*Last updated: 2026-10-25 after roadmap*

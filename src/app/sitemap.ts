@@ -20,8 +20,6 @@ const routes = [
   "/checkout/package",
   "/checkout/review",
   "/checkout/details",
-  "/checkout/payment",
-  "/order-confirmed",
   "/email-confirmation",
   "/account",
   "/dashboard",
