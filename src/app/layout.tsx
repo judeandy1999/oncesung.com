@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Caveat, DM_Serif_Display, Inter } from "next/font/google";
+import { GoogleAnalytics } from "@/components/GoogleAnalytics";
+import { GoogleTagManager } from "@/components/GoogleTagManager";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteInteractions } from "@/components/SiteInteractions";
@@ -60,6 +62,8 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang="en">
       <body className={`${inter.variable} ${dmSerif.variable} ${caveat.variable}`}>
+        <GoogleTagManager />
+        <GoogleAnalytics />
         <ToastProvider>
           <SiteHeader email={email} isAdmin={isAdminEmail(email)} />
           {children}
