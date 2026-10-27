@@ -247,3 +247,27 @@
   max-height: min(50vh, 480px);
 }
 
+.ui-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 24px 12px;
+}
+
+.ui-spinner {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--line);
+  border-top-color: var(--coral);
+  border-radius: 50%;
+  animation: ui-spin 0.7s linear infinite;
+  flex-shrink: 0;
+}
+
+@keyframes ui-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+

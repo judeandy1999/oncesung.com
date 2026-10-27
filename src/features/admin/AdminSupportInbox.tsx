@@ -1,6 +1,7 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useRef, useState } from "react";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
 import type { SupportInquiryKind, SupportMessage } from "@/lib/support/types";
 
 type InboxTab = "paid_song" | "general";
@@ -39,6 +40,7 @@ export function AdminSupportInbox() {
   const [selected, setSelected] = useState<AdminConversationRow | null>(null);
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [draft, setDraft] = useState("");
+  const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState<string | null>(null);
   const [threadError, setThreadError] = useState<string | null>(null);
   const [threadLoading, setThreadLoading] = useState(false);
@@ -58,6 +60,7 @@ export function AdminSupportInbox() {
     setDraft("");
     setListError(null);
     setThreadError(null);
+    setListLoading(true);
   };
 
   const loadList = useCallback(async (signal?: AbortSignal) => {
@@ -82,6 +85,10 @@ export function AdminSupportInbox() {
     } catch (err) {
       if (signal?.aborted || (err instanceof DOMException && err.name === "AbortError")) return;
       setListError("Could not load inquiries.");
+    } finally {
+      if (!signal?.aborted && tabRef.current === forTab) {
+        setListLoading(false);
+      }
     }
   }, []);
 
@@ -202,7 +209,9 @@ export function AdminSupportInbox() {
 
       <div className="admin-inbox-grid">
         <div className="admin-inbox-list card pad-sm">
-          {conversations.length === 0 ? (
+          {listLoading ? (
+            <LoadingSpinner label="Loading inquiries…" />
+          ) : conversations.length === 0 ? (
             <p className="xs muted" style={{ margin: 0 }}>
               No {tab === "paid_song" ? "paid song" : "general"} inquiries yet.
             </p>
@@ -246,9 +255,7 @@ export function AdminSupportInbox() {
                 <div className="xs muted">{previewLabel(selected)}</div>
               </div>
               <div className="admin-inbox-messages" ref={scrollRef}>
-                {threadLoading && messages.length === 0 ? (
-                  <p className="xs muted">Loading messages…</p>
-                ) : null}
+                {threadLoading && messages.length === 0 ? <LoadingSpinner label="Loading messages…" /> : null}
                 {!threadLoading && messages.length === 0 ? (
                   <p className="xs muted">No messages yet.</p>
                 ) : null}
