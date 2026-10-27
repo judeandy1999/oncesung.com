@@ -43,7 +43,6 @@ export function CheckoutDetailsForm({
   pendingOrderId?: string | null;
 }) {
   const router = useRouter();
-  const [notesLen, setNotesLen] = useState(0);
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
@@ -51,6 +50,7 @@ export function CheckoutDetailsForm({
     register,
     handleSubmit,
     reset,
+    watch,
     formState: { errors },
   } = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -70,10 +70,10 @@ export function CheckoutDetailsForm({
       notes: saved?.notes || "",
     };
     reset(next);
-    setNotesLen(next.notes?.length ?? 0);
   }, [accountEmail, accountName, reset]);
 
   const notesReg = register("notes");
+  const notesLen = watch("notes")?.length ?? 0;
 
   const onSubmit = async (values: FormValues) => {
     setFormError("");
@@ -182,10 +182,6 @@ export function CheckoutDetailsForm({
                     className="textarea"
                     maxLength={500}
                     {...notesReg}
-                    onChange={(e) => {
-                      notesReg.onChange(e);
-                      setNotesLen(e.target.value.length);
-                    }}
                   />
                   <span className="counter">{notesLen}/500</span>
                 </div>

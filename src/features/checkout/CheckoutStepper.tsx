@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { checkoutStepHref } from "@/features/checkout/checkout-steps";
 import { oncesungStore } from "@/lib/store";
 
@@ -29,10 +29,7 @@ function StepMark({ step, current }: { step: CheckoutStep; current: CheckoutStep
 function useCheckoutOrderId(orderIdProp: string | null | undefined): string | null {
   const searchParams = useSearchParams();
   const fromUrl = searchParams.get("order");
-  const [storedOrder, setStoredOrder] = useState<string | null>(null);
-  useEffect(() => {
-    setStoredOrder(oncesungStore.get<string>("pending-order"));
-  }, []);
+  const [storedOrder] = useState<string | null>(() => oncesungStore.get<string>("pending-order"));
   if (orderIdProp) return orderIdProp;
   if (fromUrl) return fromUrl;
   return storedOrder;
