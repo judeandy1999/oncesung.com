@@ -12,8 +12,12 @@ export async function GET(request: Request) {
   if (gate.error) return gate.error;
 
   const url = new URL(request.url);
-  const parsed = querySchema.safeParse({ kind: url.searchParams.get("kind") ?? "all" });
-  const kind = parsed.success ? parsed.data.kind ?? "all" : "all";
+  const rawKind = url.searchParams.get("kind");
+  const parsed = querySchema.safeParse({ kind: rawKind ?? undefined });
+  if (!parsed.success || !parsed.data.kind || parsed.data.kind === "all") {
+    return NextResponse.json({ error: "Choose general or paid_song." }, { status: 400 });
+  }
+  const kind = parsed.data.kind;
 
   try {
     const admin = createAdminClient();

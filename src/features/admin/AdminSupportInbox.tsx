@@ -26,7 +26,7 @@ function formatWhen(iso: string) {
   }
 }
 
-function previewLabel(row: AdminConversationRow) {
+function previewLabel(row: Pick<AdminConversationRow, "kind" | "song_title">) {
   if (row.kind === "paid_song") {
     return row.song_title ? `Song: ${row.song_title}` : "Paid song inquiry";
   }
@@ -36,83 +36,129 @@ function previewLabel(row: AdminConversationRow) {
 export function AdminSupportInbox() {
   const [tab, setTab] = useState<InboxTab>("paid_song");
   const [conversations, setConversations] = useState<AdminConversationRow[]>([]);
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [selected, setSelected] = useState<AdminConversationRow | null>(null);
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [draft, setDraft] = useState("");
   const [listError, setListError] = useState<string | null>(null);
   const [threadError, setThreadError] = useState<string | null>(null);
+  const [threadLoading, setThreadLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const tabRef = useRef(tab);
+  const threadRequestRef = useRef(0);
 
-  const selected = conversations.find((c) => c.id === selectedId) ?? null;
+  tabRef.current = tab;
 
   const switchTab = (next: InboxTab) => {
     if (next === tab) return;
     setTab(next);
-    setSelectedId(null);
+    setConversations([]);
+    setSelected(null);
     setMessages([]);
     setDraft("");
+    setListError(null);
+    setThreadError(null);
   };
 
-  const loadList = useCallback(async () => {
+  const loadList = useCallback(async (signal?: AbortSignal) => {
+    const forTab = tabRef.current;
     setListError(null);
-    const res = await fetch(`/api/admin/support/conversations?kind=${tab}`);
-    const body = (await res.json()) as { conversations?: AdminConversationRow[]; error?: string };
-    if (!res.ok) {
-      setListError(body.error || "Could not load inquiries.");
-      setConversations([]);
-      return;
-    }
-    setConversations(body.conversations ?? []);
-  }, [tab]);
+    try {
+      const res = await fetch(`/api/admin/support/conversations?kind=${forTab}`, { signal });
+      const body = (await res.json()) as { conversations?: AdminConversationRow[]; error?: string };
+      if (signal?.aborted || tabRef.current !== forTab) return;
 
-  const loadThread = useCallback(async (id: string) => {
-    setThreadError(null);
-    const res = await fetch(`/api/admin/support/conversations/${id}/messages`);
-    const body = (await res.json()) as { messages?: SupportMessage[]; error?: string };
-    if (!res.ok) {
-      setThreadError(body.error || "Could not load messages.");
-      setMessages([]);
-      return;
+      if (!res.ok) {
+        setListError(body.error || "Could not load inquiries.");
+        return;
+      }
+
+      const rows = body.conversations ?? [];
+      setConversations(rows);
+      setSelected((current) => {
+        if (!current || current.kind !== forTab) return null;
+        return rows.find((row) => row.id === current.id) ?? current;
+      });
+    } catch (err) {
+      if (signal?.aborted || (err instanceof DOMException && err.name === "AbortError")) return;
+      setListError("Could not load inquiries.");
     }
-    setMessages(body.messages ?? []);
-    requestAnimationFrame(() => {
-      const el = scrollRef.current;
-      if (el) el.scrollTop = el.scrollHeight;
-    });
+  }, []);
+
+  const loadThread = useCallback(async (id: string, signal?: AbortSignal) => {
+    const requestId = ++threadRequestRef.current;
+    setThreadLoading(true);
+    setThreadError(null);
+    try {
+      const res = await fetch(`/api/admin/support/conversations/${id}/messages`, { signal });
+      const body = (await res.json()) as { messages?: SupportMessage[]; error?: string };
+      if (signal?.aborted || requestId !== threadRequestRef.current) return;
+
+      if (!res.ok) {
+        setThreadError(body.error || "Could not load messages.");
+        return;
+      }
+
+      setMessages(body.messages ?? []);
+      requestAnimationFrame(() => {
+        const el = scrollRef.current;
+        if (el) el.scrollTop = el.scrollHeight;
+      });
+    } catch (err) {
+      if (signal?.aborted || (err instanceof DOMException && err.name === "AbortError")) return;
+      if (requestId === threadRequestRef.current) {
+        setThreadError("Could not load messages.");
+      }
+    } finally {
+      if (requestId === threadRequestRef.current) {
+        setThreadLoading(false);
+      }
+    }
   }, []);
 
   useEffect(() => {
-    const run = () => void loadList();
+    const controller = new AbortController();
+    const run = () => void loadList(controller.signal);
     const kickoff = window.setTimeout(run, 0);
     const timer = window.setInterval(run, 8000);
     return () => {
       window.clearTimeout(kickoff);
       window.clearInterval(timer);
+      controller.abort();
     };
-  }, [loadList]);
+  }, [loadList, tab]);
 
   useEffect(() => {
-    if (!selectedId) return;
-    const id = selectedId;
-    const run = () => void loadThread(id);
+    if (!selected) return;
+    const id = selected.id;
+    const controller = new AbortController();
+    const run = () => void loadThread(id, controller.signal);
     const kickoff = window.setTimeout(run, 0);
-    const timer = window.setInterval(run, 4000);
+    const timer = window.setInterval(run, 8000);
     return () => {
       window.clearTimeout(kickoff);
       window.clearInterval(timer);
+      controller.abort();
+      threadRequestRef.current += 1;
     };
-  }, [loadThread, selectedId]);
+  }, [loadThread, selected]);
+
+  const pickConversation = (row: AdminConversationRow) => {
+    if (selected?.id === row.id) return;
+    setSelected(row);
+    setMessages([]);
+    setThreadError(null);
+  };
 
   const sendReply = async (event: FormEvent) => {
     event.preventDefault();
-    if (!selectedId) return;
+    if (!selected) return;
     const body = draft.trim();
     if (!body) return;
 
     setSending(true);
     setThreadError(null);
-    const res = await fetch(`/api/admin/support/conversations/${selectedId}/messages`, {
+    const res = await fetch(`/api/admin/support/conversations/${selected.id}/messages`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ body }),
@@ -165,8 +211,8 @@ export function AdminSupportInbox() {
               <button
                 key={row.id}
                 type="button"
-                className={`admin-inbox-item${row.id === selectedId ? " on" : ""}`}
-                onClick={() => setSelectedId(row.id)}
+                className={`admin-inbox-item${row.id === selected?.id ? " on" : ""}`}
+                onClick={() => pickConversation(row)}
               >
                 <div className="row between" style={{ gap: 8, alignItems: "flex-start" }}>
                   <b className="small">{row.customer_name}</b>
@@ -200,19 +246,21 @@ export function AdminSupportInbox() {
                 <div className="xs muted">{previewLabel(selected)}</div>
               </div>
               <div className="admin-inbox-messages" ref={scrollRef}>
-                {messages.length === 0 ? (
+                {threadLoading && messages.length === 0 ? (
+                  <p className="xs muted">Loading messages…</p>
+                ) : null}
+                {!threadLoading && messages.length === 0 ? (
                   <p className="xs muted">No messages yet.</p>
-                ) : (
-                  messages.map((msg) => (
-                    <div
-                      key={msg.id}
-                      className={`support-chat-bubble${msg.sender_role === "admin" ? " mine" : " theirs"}`}
-                    >
-                      <div>{msg.body}</div>
-                      <time className="xs muted">{formatWhen(msg.created_at)}</time>
-                    </div>
-                  ))
-                )}
+                ) : null}
+                {messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`support-chat-bubble${msg.sender_role === "admin" ? " mine" : " theirs"}`}
+                  >
+                    <div>{msg.body}</div>
+                    <time className="xs muted">{formatWhen(msg.created_at)}</time>
+                  </div>
+                ))}
               </div>
               {threadError ? <p className="form-error">{threadError}</p> : null}
               <form className="support-chat-compose" onSubmit={sendReply}>
