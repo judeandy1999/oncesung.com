@@ -2,6 +2,8 @@
 
 import Link from "next/link";
 import { useMemo, useState } from "react";
+import { MessageCircle } from "lucide-react";
+import { openSupportChat, paidSongInquiryMessage } from "@/features/support/open-support-chat";
 import { OrderProgressTrack } from "@/features/orders/OrderProgressTrack";
 import {
   estimatedDeliveryDate,
@@ -152,6 +154,7 @@ function OrderCard({ order }: { order: DashboardOrder }) {
           <a className="btn btn-outline btn-sm" href={`/api/orders/${order.id}/audio?download=1`} style={{ marginTop: 8 }}>
             Listen &amp; Download
           </a>
+          <InquireAboutSongButton orderId={order.id} songTitle={title} />
         </div>
       </article>
     );
@@ -195,13 +198,35 @@ function OrderCard({ order }: { order: DashboardOrder }) {
         </div>
       </div>
 
-      <p className="xs muted" style={{ marginBottom: 0 }}>
-        Need changes after delivery? Use{" "}
-        <Link className="link" href="/requests">
-          Revisions &amp; Remakes
-        </Link>
-        .
-      </p>
+      <div className="row" style={{ flexWrap: "wrap", gap: 8, marginTop: 12 }}>
+        <InquireAboutSongButton orderId={order.id} songTitle={title} />
+        <p className="xs muted" style={{ margin: 0, alignSelf: "center" }}>
+          Need changes after delivery?{" "}
+          <Link className="link" href="/requests">
+            Revisions &amp; Remakes
+          </Link>
+        </p>
+      </div>
     </article>
+  );
+}
+
+function InquireAboutSongButton({ orderId, songTitle }: { orderId: string; songTitle: string }) {
+  return (
+    <button
+      type="button"
+      className="btn btn-outline btn-sm"
+      onClick={() =>
+        openSupportChat({
+          kind: "paid_song",
+          orderId,
+          songTitle,
+          suggestedMessage: paidSongInquiryMessage(songTitle),
+        })
+      }
+    >
+      <MessageCircle size={16} strokeWidth={1.8} aria-hidden />
+      Inquire about {songTitle}
+    </button>
   );
 }

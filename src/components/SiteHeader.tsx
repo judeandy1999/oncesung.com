@@ -19,7 +19,12 @@ export function SiteHeader({ email, isAdmin = false }: { email: string | null; i
     ? [
         { href: "/account", label: "My Account" },
         { href: "/dashboard", label: "My Orders" },
-        ...(isAdmin ? [{ href: "/admin/orders", label: "Song orders" }] : []),
+        ...(isAdmin
+          ? [
+              { href: "/admin/orders", label: "Song orders" },
+              { href: "/admin/messages", label: "Customer messages" },
+            ]
+          : []),
         { href: "/requests", label: "Revisions & Remakes" },
       ]
     : [
@@ -66,9 +71,14 @@ export function SiteHeader({ email, isAdmin = false }: { email: string | null; i
             </>
           )}
           {isAdmin ? (
-            <Link className="btn btn-ghost btn-sm" href="/admin/orders">
-              Orders
-            </Link>
+            <>
+              <Link className="btn btn-ghost btn-sm" href="/admin/messages">
+                Messages
+              </Link>
+              <Link className="btn btn-ghost btn-sm" href="/admin/orders">
+                Orders
+              </Link>
+            </>
           ) : null}
           <Link className="btn btn-primary btn-sm" href="/song-intake">
             Create a Song

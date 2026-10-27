@@ -3,6 +3,7 @@ import { Caveat, DM_Serif_Display, Inter } from "next/font/google";
 import { SiteFooter } from "@/components/SiteFooter";
 import { SiteHeader } from "@/components/SiteHeader";
 import { SiteInteractions } from "@/components/SiteInteractions";
+import { SupportChatWidget } from "@/features/support/SupportChatWidget";
 import { ToastProvider } from "@/hooks/use-toast";
 import { isAdminEmail } from "@/lib/orders/admin";
 import { SITE_NAME, SITE_TAGLINE } from "@/lib/routes";
@@ -45,12 +46,15 @@ export const metadata: Metadata = {
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   let email: string | null = null;
+  let userId: string | null = null;
   try {
     const supabase = await createClient();
     const { data } = await supabase.auth.getUser();
     email = data.user?.email ?? null;
+    userId = data.user?.id ?? null;
   } catch {
     email = null;
+    userId = null;
   }
 
   return (
@@ -61,6 +65,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           {children}
           <SiteFooter email={email} />
           <SiteInteractions />
+          <SupportChatWidget userId={userId} isAdmin={isAdminEmail(email)} />
         </ToastProvider>
       </body>
     </html>
