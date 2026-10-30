@@ -16,8 +16,7 @@ export function withAccountProfile(html: string, profile: OwnProfile) {
   const initial = escapeHtml((profile.fullName || profile.email || "?").trim().charAt(0).toUpperCase() || "?");
   const payload = JSON.stringify({ name: profile.fullName, email: profile.email }).replace(/</g, "\\u003c");
 
-  return html
-    .replace("<main>", `<script type="application/json" id="acct-server-profile">${payload}</script><main>`)
+  return `<script type="application/json" id="acct-server-profile">${payload}</script>${html}`
     .replace('data-acct-initial>?</span>', `data-acct-initial>${initial}</span>`)
     .replace("data-acct-name>Your account</b>", `data-acct-name>${name || "Your account"}</b>`)
     .replace('data-acct-email>Saved on this device</div>', `data-acct-email>${email || "Signed in"}</div>`)

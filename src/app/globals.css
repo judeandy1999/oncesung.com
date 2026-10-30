@@ -71,6 +71,15 @@
   align-items: start;
 }
 
+.orders-layout > .account-main {
+  min-width: 0;
+}
+
+/* Safety: only one account sidebar column (legacy + React must not stack). */
+.orders-layout > aside ~ aside {
+  display: none !important;
+}
+
 @media (max-width: 800px) {
   .orders-layout {
     grid-template-columns: 1fr;
