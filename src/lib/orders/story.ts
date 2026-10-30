@@ -14,6 +14,8 @@ const FIELD_LABELS: Record<string, string> = {
   message: "Message",
   contactName: "Contact name",
   contactEmail: "Contact email",
+  recipientEmail: "Recipient email",
+  isGift: "Gift order",
   notes: "Notes from checkout",
   story: "Featured memory",
   genre_mix: "Style mix",
@@ -54,6 +56,35 @@ function pickString(story: unknown, key: string): string {
 
 export function recipientFromStory(story: unknown): string {
   return pickString(story, "recipient");
+}
+
+export function contactEmailFromStory(story: unknown): string {
+  return pickString(story, "contactEmail").slice(0, 254);
+}
+
+export function contactNameFromStory(story: unknown): string {
+  return pickString(story, "contactName");
+}
+
+export function recipientEmailFromStory(story: unknown): string {
+  return pickString(story, "recipientEmail").slice(0, 254);
+}
+
+function pickBoolean(story: unknown, key: string): boolean {
+  const root = storyRecord(story);
+  if (!root) return false;
+  const top = root[key];
+  if (typeof top === "boolean") return top;
+  const answers = root.answers;
+  if (answers && typeof answers === "object" && !Array.isArray(answers)) {
+    const nested = (answers as Record<string, unknown>)[key];
+    if (typeof nested === "boolean") return nested;
+  }
+  return false;
+}
+
+export function isGiftFromStory(story: unknown): boolean {
+  return pickBoolean(story, "isGift");
 }
 
 export function occasionFromStory(story: unknown): string {

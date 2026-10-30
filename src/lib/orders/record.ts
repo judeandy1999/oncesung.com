@@ -1,5 +1,6 @@
 import "server-only";
 import { createAdminClient } from "@/lib/supabase/admin";
+import { notifyOrderPaid } from "@/lib/email/notify";
 import { payPalValueToCents, type PackageKey } from "@/lib/orders/catalog";
 
 export type SavedOrder = {
@@ -17,6 +18,7 @@ export type SavedOrder = {
   song_storage_path: string | null;
   song_filename: string | null;
   song_content_type: string | null;
+  gift_access_token: string | null;
   paid_at: string | null;
   created_at: string;
 };
@@ -24,6 +26,18 @@ export type SavedOrder = {
 export async function getOrderById(id: string): Promise<SavedOrder | null> {
   const admin = createAdminClient();
   const { data, error } = await admin.from("orders").select("*").eq("id", id).maybeSingle();
+  if (error || !data) return null;
+  return data as SavedOrder;
+}
+
+export async function getOrderByGiftToken(token: string): Promise<SavedOrder | null> {
+  const admin = createAdminClient();
+  const { data, error } = await admin
+    .from("orders")
+    .select("*")
+    .eq("gift_access_token", token)
+    .eq("status", "paid")
+    .maybeSingle();
   if (error || !data) return null;
   return data as SavedOrder;
 }
@@ -77,5 +91,7 @@ export async function markOrderPaid(input: {
     }
     return { ok: false, error: "The payment was taken but the order could not be saved." };
   }
+  const paid = await getOrderById(order.id);
+  if (paid) void notifyOrderPaid(paid);
   return { ok: true, orderId: order.id };
 }

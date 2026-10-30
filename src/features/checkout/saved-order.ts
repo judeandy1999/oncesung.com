@@ -9,6 +9,7 @@ export type CheckoutDetails = {
   updates: boolean;
   isGift: boolean;
   recipient?: string;
+  recipientEmail?: string;
   relationship: "Partner" | "Friend" | "Family";
   notes?: string;
 };
@@ -41,6 +42,10 @@ function storyForCheckout(details: Partial<CheckoutDetails> | null): Record<stri
   if (details?.fullName?.trim()) answers.contactName = details.fullName.trim();
   if (details?.email?.trim()) answers.contactEmail = details.email.trim();
   if (details?.relationship) answers.relationship = details.relationship;
+  answers.isGift = Boolean(details?.isGift);
+  if (details?.isGift && details.recipientEmail?.trim()) {
+    answers.recipientEmail = details.recipientEmail.trim();
+  }
 
   const brief = oncesungStore.get<{ text?: string; json?: unknown }>("brief");
   const payload: Record<string, unknown> = { ...base, answers };

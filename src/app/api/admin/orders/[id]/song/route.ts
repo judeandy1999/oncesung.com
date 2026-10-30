@@ -3,6 +3,7 @@ import { z } from "zod";
 import { createClient } from "@/lib/supabase/server";
 import { createAdminClient } from "@/lib/supabase/admin";
 import { isAdminEmail } from "@/lib/orders/admin";
+import { notifySongReady } from "@/lib/email/notify";
 import { getOrderById } from "@/lib/orders/record";
 
 const paramsSchema = z.string().uuid();
@@ -57,6 +58,7 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     back.searchParams.set("error", "Upload a song only after the customer has paid.");
     return NextResponse.redirect(back);
   }
+  const firstUpload = !order.song_storage_path;
 
   const form = await request.formData();
   const file = form.get("song");
@@ -100,6 +102,10 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     if (updateError) {
       back.searchParams.set("error", "The file was stored but the order was not updated.");
       return NextResponse.redirect(back);
+    }
+    if (firstUpload) {
+      const ready = await getOrderById(order.id);
+      if (ready) void notifySongReady(ready);
     }
   } catch (err) {
     console.error(err);

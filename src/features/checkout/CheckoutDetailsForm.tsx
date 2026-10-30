@@ -11,15 +11,27 @@ import { oncesungStore } from "@/lib/store";
 import { CheckoutStepperSection } from "@/features/checkout/CheckoutStepperSection";
 import { createCheckoutOrder, readCheckoutDetails, type CheckoutDetails } from "@/features/checkout/saved-order";
 
-const schema = z.object({
-  fullName: z.string().min(2, "Please enter your name"),
-  email: z.string().email("Enter a valid email"),
-  updates: z.boolean(),
-  isGift: z.boolean(),
-  recipient: z.string().optional(),
-  relationship: z.enum(["Partner", "Friend", "Family"]),
-  notes: z.string().max(500).optional(),
-});
+const schema = z
+  .object({
+    fullName: z.string().min(2, "Please enter your name"),
+    email: z.string().email("Enter a valid email"),
+    updates: z.boolean(),
+    isGift: z.boolean(),
+    recipient: z.string().optional(),
+    recipientEmail: z.string().optional(),
+    relationship: z.enum(["Partner", "Friend", "Family"]),
+    notes: z.string().max(500).optional(),
+  })
+  .superRefine((data, ctx) => {
+    if (data.isGift) {
+      const recipientEmail = (data.recipientEmail ?? "").trim();
+      if (!recipientEmail) {
+        ctx.addIssue({ code: "custom", path: ["recipientEmail"], message: "Enter the recipient's email" });
+      } else if (!z.string().email().safeParse(recipientEmail).success) {
+        ctx.addIssue({ code: "custom", path: ["recipientEmail"], message: "Enter a valid email" });
+      }
+    }
+  });
 
 type FormValues = z.infer<typeof schema>;
 
@@ -29,6 +41,7 @@ const emptyDetails: FormValues = {
   updates: true,
   isGift: false,
   recipient: "",
+  recipientEmail: "",
   relationship: "Partner",
   notes: "",
 };
@@ -66,6 +79,7 @@ export function CheckoutDetailsForm({
       updates: saved?.updates ?? true,
       isGift: saved?.isGift ?? false,
       recipient: saved?.recipient || "",
+      recipientEmail: saved?.recipientEmail || "",
       relationship: saved?.relationship || "Partner",
       notes: saved?.notes || "",
     };
@@ -74,6 +88,7 @@ export function CheckoutDetailsForm({
 
   const notesReg = register("notes");
   const notesLen = watch("notes")?.length ?? 0;
+  const isGift = watch("isGift");
 
   const onSubmit = async (values: FormValues) => {
     setFormError("");
@@ -176,6 +191,29 @@ export function CheckoutDetailsForm({
                     </select>
                   </div>
                 </div>
+                {isGift ? (
+                  <div className="field" style={{ marginTop: 14 }}>
+                    <label className="lbl xs">
+                      Recipient&apos;s email <span className="req">*</span>
+                    </label>
+                    <input
+                      className="input"
+                      type="email"
+                      autoComplete="email"
+                      placeholder="Where we send the finished song"
+                      {...register("recipientEmail")}
+                    />
+                    {errors.recipientEmail ? (
+                      <p className="xs" style={{ color: "var(--coral-ink)", marginTop: 6 }}>
+                        {errors.recipientEmail.message}
+                      </p>
+                    ) : (
+                      <p className="xs muted" style={{ marginTop: 6 }}>
+                        We email them a private link to listen and download — no pricing shown.
+                      </p>
+                    )}
+                  </div>
+                ) : null}
                 <div className="field">
                   <label className="lbl xs">Anything we should know?</label>
                   <textarea
