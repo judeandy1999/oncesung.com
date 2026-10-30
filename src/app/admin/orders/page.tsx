@@ -100,7 +100,21 @@ export default async function AdminOrdersPage({
           <h1>Paid orders</h1>
           <p className="muted">Upload the finished song onto the order the customer paid for. They can then play and download it from My Orders.</p>
           {notice.error ? <p>{notice.error}</p> : null}
-          {notice.uploaded ? <p>Song uploaded. The customer can play it from My Orders.</p> : null}
+          {notice.uploaded ? (
+            <p>
+              Song uploaded. The customer can play it from My Orders.
+              {notice.buyer === "1" || notice.gift === "1"
+                ? ` Emails sent${notice.buyer === "1" ? " (buyer)" : ""}${notice.gift === "1" ? " (gift recipient)" : ""}.`
+                : notice.delivery
+                  ? ""
+                  : " No delivery emails were sent — check the Delivery section on the order."}
+              {notice.delivery ? (
+                <span className="small" style={{ display: "block", marginTop: 6, color: "var(--coral-ink)" }}>
+                  {notice.delivery}
+                </span>
+              ) : null}
+            </p>
+          ) : null}
           {notice.resent ? (
             <p>
               Delivery emails resent

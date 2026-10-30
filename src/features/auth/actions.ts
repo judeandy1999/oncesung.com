@@ -11,7 +11,9 @@ import {
   resetSchema,
   type FieldErrors,
 } from "@/lib/auth/schema";
+import { notifyWelcome } from "@/lib/email/notify";
 import { createClient } from "@/lib/supabase/server";
+import { createAdminClient } from "@/lib/supabase/admin";
 
 export type AuthState = {
   error?: string;
@@ -93,7 +95,23 @@ export async function registerAction(_prev: AuthState, formData: FormData): Prom
     return { error: "Could not create the account. Try again." };
   }
 
-  if (data.session) redirect("/account");
+  if (data.session && data.user?.email) {
+    const welcome = await notifyWelcome({
+      email: data.user.email,
+      name: parsed.data.fullName,
+    });
+    if (welcome.ok) {
+      try {
+        const admin = createAdminClient();
+        await admin.auth.admin.updateUserById(data.user.id, {
+          user_metadata: { ...(data.user.user_metadata ?? {}), welcome_email_sent: true },
+        });
+      } catch {
+        /* metadata update is best-effort */
+      }
+    }
+    redirect("/account");
+  }
   return { success: "Check your email to confirm your account." };
 }
 

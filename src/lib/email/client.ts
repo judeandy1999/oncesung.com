@@ -11,16 +11,18 @@ function getResend(): Resend | null {
   return resend;
 }
 
+export type SendEmailResult = { ok: true } | { ok: false; reason: string };
+
 export async function sendEmail(input: {
   to: string;
   subject: string;
   html: string;
   text: string;
-}): Promise<boolean> {
+}): Promise<SendEmailResult> {
   const client = getResend();
-  if (!client) return false;
+  if (!client) return { ok: false, reason: "RESEND_API_KEY is not set." };
   const to = input.to.trim();
-  if (!to) return false;
+  if (!to) return { ok: false, reason: "No recipient address." };
 
   const { error } = await client.emails.send({
     from: emailFromAddress(),
@@ -30,8 +32,8 @@ export async function sendEmail(input: {
     text: input.text,
   });
   if (error) {
-    console.error("Email send failed");
-    return false;
+    console.error("Email send failed", error.message);
+    return { ok: false, reason: error.message || "Resend rejected the message." };
   }
-  return true;
+  return { ok: true };
 }

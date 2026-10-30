@@ -102,7 +102,14 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       return NextResponse.redirect(back);
     }
     const ready = await getOrderById(order.id);
-    if (ready) await notifySongReady(ready);
+    if (ready) {
+      const delivery = await notifySongReady(ready);
+      back.searchParams.set("uploaded", order.id);
+      if (delivery.buyerSent) back.searchParams.set("buyer", "1");
+      if (delivery.giftSent) back.searchParams.set("gift", "1");
+      if (delivery.issues.length) back.searchParams.set("delivery", delivery.issues.join(" · "));
+      return NextResponse.redirect(back);
+    }
   } catch (err) {
     console.error(err);
     back.searchParams.set("error", "The song file could not be stored.");

@@ -37,11 +37,13 @@ export async function GET(request: Request) {
 
   if (!meta.welcome_email_sent && data.user.email) {
     try {
-      await notifyWelcome({ email: data.user.email, name: fullName });
-      const admin = createAdminClient();
-      await admin.auth.admin.updateUserById(data.user.id, {
-        user_metadata: { ...meta, welcome_email_sent: true },
-      });
+      const welcome = await notifyWelcome({ email: data.user.email, name: fullName });
+      if (welcome.ok) {
+        const admin = createAdminClient();
+        await admin.auth.admin.updateUserById(data.user.id, {
+          user_metadata: { ...meta, welcome_email_sent: true },
+        });
+      }
     } catch {
       /* welcome email is best-effort */
     }

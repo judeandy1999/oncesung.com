@@ -1,6 +1,6 @@
 import "server-only";
 
-import { sendEmail } from "@/lib/email/client";
+import { sendEmail, type SendEmailResult } from "@/lib/email/client";
 import { isEmailConfigured, siteOriginForEmail } from "@/lib/email/config";
 import type { SongDeliveryResult } from "@/lib/email/delivery-result";
 import {
@@ -20,9 +20,9 @@ import {
 } from "@/lib/orders/story";
 import { createAdminClient } from "@/lib/supabase/admin";
 
-export async function notifyWelcome(input: { email: string; name: string }) {
+export async function notifyWelcome(input: { email: string; name: string }): Promise<SendEmailResult> {
   const msg = welcomeEmail(input.name);
-  await sendEmail({ to: input.email, ...msg });
+  return sendEmail({ to: input.email, ...msg });
 }
 
 export async function notifyOrderPaid(order: SavedOrder) {
@@ -72,20 +72,19 @@ export async function notifySongReady(order: SavedOrder): Promise<SongDeliveryRe
   });
   let buyerSent = false;
   if (contactEmail) {
-    buyerSent = await sendEmail({ to: contactEmail, ...buyerMsg });
-    if (!buyerSent && isEmailConfigured()) issues.push("Buyer email could not be sent.");
+    const buyerResult = await sendEmail({ to: contactEmail, ...buyerMsg });
+    buyerSent = buyerResult.ok;
+    if (!buyerResult.ok) issues.push(`Buyer: ${buyerResult.reason}`);
   } else {
     issues.push("No buyer email on the order (add contactEmail in checkout or use the account email).");
   }
 
-  const isGift = isGiftFromStory(order.story);
-  if (!isGift) {
-    return { buyerSent, giftSent: false, giftUrl: null, issues };
-  }
-
   const recipientEmail = recipientEmailFromStory(order.story);
+  const isGift = isGiftFromStory(order.story);
   if (!recipientEmail) {
-    issues.push("Gift order but no recipient email — add story.answers.recipientEmail in Supabase or re-enter checkout as a gift.");
+    if (isGift) {
+      issues.push("Gift order but no recipient email — add story.answers.recipientEmail in Supabase or re-enter checkout as a gift.");
+    }
     return { buyerSent, giftSent: false, giftUrl: null, issues };
   }
 
@@ -104,10 +103,9 @@ export async function notifySongReady(order: SavedOrder): Promise<SongDeliveryRe
     giverName: contactName,
     giftUrl,
   });
-  const giftSent = await sendEmail({ to: recipientEmail, ...giftMsg });
-  if (!giftSent && isEmailConfigured()) {
-    issues.push("Gift recipient email could not be sent (check Resend domain and recipient address).");
-  }
+  const giftResult = await sendEmail({ to: recipientEmail, ...giftMsg });
+  const giftSent = giftResult.ok;
+  if (!giftResult.ok) issues.push(`Gift recipient: ${giftResult.reason}`);
 
   return { buyerSent, giftSent, giftUrl, issues };
 }

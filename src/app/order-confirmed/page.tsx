@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { PurchaseConversionTracker } from "@/features/analytics/PurchaseConversionTracker";
 import { requireUser } from "@/lib/auth/require-user";
 import { formatCents, packageByKey } from "@/lib/orders/catalog";
 import { getOwnOrder } from "@/lib/orders/queries";
@@ -44,6 +45,11 @@ export default async function OrderConfirmedPage({ searchParams }: { searchParam
   const pkg = packageByKey(paid.package_key);
   return (
     <main>
+      <PurchaseConversionTracker
+        orderId={paid.id}
+        amountCents={paid.amount_cents}
+        currency={paid.currency || "USD"}
+      />
       <section>
         <div className="container" style={{ padding: "48px 0" }}>
           <span className="badge green">Paid</span>
