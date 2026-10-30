@@ -58,8 +58,6 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
     back.searchParams.set("error", "Upload a song only after the customer has paid.");
     return NextResponse.redirect(back);
   }
-  const firstUpload = !order.song_storage_path;
-
   const form = await request.formData();
   const file = form.get("song");
   if (!(file instanceof File) || file.size === 0) {
@@ -103,10 +101,8 @@ export async function POST(request: Request, context: { params: Promise<{ id: st
       back.searchParams.set("error", "The file was stored but the order was not updated.");
       return NextResponse.redirect(back);
     }
-    if (firstUpload) {
-      const ready = await getOrderById(order.id);
-      if (ready) void notifySongReady(ready);
-    }
+    const ready = await getOrderById(order.id);
+    if (ready) await notifySongReady(ready);
   } catch (err) {
     console.error(err);
     back.searchParams.set("error", "The song file could not be stored.");

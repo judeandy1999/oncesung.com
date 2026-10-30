@@ -5,7 +5,13 @@ import { requireUser } from "@/lib/auth/require-user";
 import { isAdminConfigured, isAdminEmail } from "@/lib/orders/admin";
 import { formatCents, packageByKey } from "@/lib/orders/catalog";
 import { AdminOrderPanel } from "@/features/admin/AdminOrderPanel";
-import { storyBriefSections } from "@/lib/orders/story";
+import { siteOriginForEmail } from "@/lib/email/config";
+import { ensureGiftAccessToken } from "@/lib/orders/gift-access";
+import {
+  isGiftFromStory,
+  recipientEmailFromStory,
+  storyBriefSections,
+} from "@/lib/orders/story";
 import { createAdminClient } from "@/lib/supabase/admin";
 
 export const dynamic = "force-dynamic";
@@ -26,15 +32,17 @@ type AdminOrder = {
   paid_at: string | null;
   story: unknown;
   song_filename: string | null;
+  gift_access_token: string | null;
 };
 
 export default async function AdminOrdersPage({
   searchParams,
 }: {
-  searchParams: Promise<{ error?: string; uploaded?: string }>;
+  searchParams: Promise<{ error?: string; uploaded?: string; resent?: string; buyer?: string; gift?: string; delivery?: string }>;
 }) {
   const user = await requireUser("/admin/orders");
   const notice = await searchParams;
+  const siteOrigin = siteOriginForEmail();
   if (!isAdminConfigured()) {
     return (
       <main>
@@ -55,10 +63,17 @@ export default async function AdminOrdersPage({
     const admin = createAdminClient();
     const { data } = await admin
       .from("orders")
-      .select("id, user_id, package_key, amount_cents, recipient_name, occasion, paid_at, story, song_filename")
+      .select(
+        "id, user_id, package_key, amount_cents, recipient_name, occasion, paid_at, story, song_filename, gift_access_token",
+      )
       .eq("status", "paid")
       .order("paid_at", { ascending: false });
     orders = (data ?? []) as AdminOrder[];
+    for (const order of orders) {
+      if (order.song_filename && !order.gift_access_token) {
+        order.gift_access_token = await ensureGiftAccessToken(order.id);
+      }
+    }
     const userIds = [...new Set(orders.map((order) => order.user_id))];
     const { data: profiles } = userIds.length
       ? await admin.from("profiles").select("id, email, full_name").in("id", userIds)
@@ -86,6 +101,14 @@ export default async function AdminOrdersPage({
           <p className="muted">Upload the finished song onto the order the customer paid for. They can then play and download it from My Orders.</p>
           {notice.error ? <p>{notice.error}</p> : null}
           {notice.uploaded ? <p>Song uploaded. The customer can play it from My Orders.</p> : null}
+          {notice.resent ? (
+            <p>
+              Delivery emails resent
+              {notice.buyer === "1" ? " (buyer)" : ""}
+              {notice.gift === "1" ? " (gift recipient)" : ""}.
+              {notice.delivery ? ` ${notice.delivery}` : ""}
+            </p>
+          ) : null}
           {orders.length === 0 ? (
             <div className="card pad">
               <p className="muted" style={{ margin: 0 }}>
@@ -97,6 +120,10 @@ export default async function AdminOrdersPage({
               const pkg = packageByKey(order.package_key);
               const person = people.get(order.user_id);
               const briefSections = storyBriefSections(order.story);
+              const isGift = isGiftFromStory(order.story);
+              const recipientEmail = recipientEmailFromStory(order.story);
+              const token = order.gift_access_token;
+              const giftUrl = token && order.song_filename ? `${siteOrigin}/gift/${token}` : null;
               return (
                 <AdminOrderPanel
                   key={order.id}
@@ -109,6 +136,12 @@ export default async function AdminOrdersPage({
                   }}
                   briefSections={briefSections}
                   hasFile={Boolean(order.song_filename)}
+                  giftDelivery={{
+                    isGift,
+                    recipientEmail,
+                    giftUrl,
+                    tokenMissing: Boolean(order.song_filename && isGift && !token),
+                  }}
                 />
               );
             })

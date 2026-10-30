@@ -12,14 +12,42 @@ export function AdminSongUploadForm({
 }) {
   const inputId = useId();
   const [fileName, setFileName] = useState("");
+  const [uploading, setUploading] = useState(false);
+  const [error, setError] = useState("");
+
+  const onSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const form = event.currentTarget;
+    const input = form.elements.namedItem("song");
+    if (!(input instanceof HTMLInputElement) || !input.files?.[0]) return;
+
+    setUploading(true);
+    setError("");
+    try {
+      const response = await fetch(`/api/admin/orders/${orderId}/song`, {
+        method: "POST",
+        body: new FormData(form),
+        credentials: "same-origin",
+        redirect: "follow",
+      });
+      if (response.redirected) {
+        window.location.assign(response.url);
+        return;
+      }
+      if (response.ok) {
+        window.location.assign(`/admin/orders?uploaded=${encodeURIComponent(orderId)}`);
+        return;
+      }
+      setError("The song could not be uploaded. Check the file type and size, then try again.");
+    } catch {
+      setError("The song could not be uploaded. Check your connection and try again.");
+    } finally {
+      setUploading(false);
+    }
+  };
 
   return (
-    <form
-      action={`/api/admin/orders/${orderId}/song`}
-      method="post"
-      encType="multipart/form-data"
-      style={{ marginTop: 12 }}
-    >
+    <form onSubmit={(event) => void onSubmit(event)} encType="multipart/form-data" style={{ marginTop: 12 }}>
       <p className="small muted" style={{ margin: "0 0 8px" }}>
         MP3 or WAV, up to 50 MB
       </p>
@@ -67,9 +95,14 @@ export function AdminSongUploadForm({
           }}
         />
       </div>
-      <button className="btn btn-primary btn-sm" type="submit" disabled={!fileName}>
-        {hasFile ? "Replace song" : "Upload song"}
+      <button className="btn btn-primary btn-sm" type="submit" disabled={!fileName || uploading}>
+        {uploading ? "Uploading…" : hasFile ? "Replace song" : "Upload song"}
       </button>
+      {error ? (
+        <p className="xs" style={{ color: "var(--coral-ink)", margin: "8px 0 0" }}>
+          {error}
+        </p>
+      ) : null}
       {!fileName && !hasFile ? (
         <p className="xs muted" style={{ margin: "8px 0 0" }}>
           Pick a file first, then upload.

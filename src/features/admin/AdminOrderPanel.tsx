@@ -2,6 +2,7 @@
 
 import { useRef, useState } from "react";
 import { Copy } from "lucide-react";
+import { AdminGiftDelivery } from "@/features/admin/AdminGiftDelivery";
 import { AdminSongUploadForm } from "@/features/admin/AdminSongUploadForm";
 import { useToast } from "@/hooks/use-toast";
 import type { StoryBriefSection } from "@/lib/orders/story";
@@ -17,6 +18,7 @@ export function AdminOrderPanel({
   badge,
   briefSections,
   hasFile,
+  giftDelivery,
 }: {
   orderId: string;
   title: string;
@@ -24,6 +26,12 @@ export function AdminOrderPanel({
   badge: { label: string; green: boolean };
   briefSections: StoryBriefSection[];
   hasFile: boolean;
+  giftDelivery?: {
+    isGift: boolean;
+    recipientEmail: string;
+    giftUrl: string | null;
+    tokenMissing: boolean;
+  };
 }) {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const { toast } = useToast();
@@ -75,6 +83,16 @@ export function AdminOrderPanel({
       ) : null}
 
       <AdminSongUploadForm orderId={orderId} hasFile={hasFile} />
+
+      {hasFile && giftDelivery ? (
+        <AdminGiftDelivery
+          orderId={orderId}
+          isGift={giftDelivery.isGift}
+          recipientEmail={giftDelivery.recipientEmail}
+          giftUrl={giftDelivery.giftUrl}
+          tokenMissing={giftDelivery.tokenMissing}
+        />
+      ) : null}
 
       <dialog ref={dialogRef} className="admin-brief-dialog">
         <form method="dialog">

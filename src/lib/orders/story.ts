@@ -70,15 +70,22 @@ export function recipientEmailFromStory(story: unknown): string {
   return pickString(story, "recipientEmail").slice(0, 254);
 }
 
+function truthyFlag(value: unknown): boolean {
+  if (value === true || value === 1) return true;
+  if (typeof value === "string") {
+    const lower = value.trim().toLowerCase();
+    return lower === "true" || lower === "1" || lower === "yes";
+  }
+  return false;
+}
+
 function pickBoolean(story: unknown, key: string): boolean {
   const root = storyRecord(story);
   if (!root) return false;
-  const top = root[key];
-  if (typeof top === "boolean") return top;
+  if (truthyFlag(root[key])) return true;
   const answers = root.answers;
   if (answers && typeof answers === "object" && !Array.isArray(answers)) {
-    const nested = (answers as Record<string, unknown>)[key];
-    if (typeof nested === "boolean") return nested;
+    if (truthyFlag((answers as Record<string, unknown>)[key])) return true;
   }
   return false;
 }
