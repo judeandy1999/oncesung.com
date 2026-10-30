@@ -38,9 +38,14 @@ export default async function GiftCardSuccessPage({ searchParams }: { searchPara
           <p className="xs muted" style={{ wordBreak: "break-all" }}>
             Redeem link: {redeemUrl}
           </p>
-          <Link className="btn btn-primary" href="/gift-cards#buy">
-            Buy another
-          </Link>
+          <div className="row" style={{ gap: 8, marginTop: 16 }}>
+            <Link className="btn btn-primary" href={`/gift-cards/card/${encodeURIComponent(credit.id)}`}>
+              Open digital card & QR
+            </Link>
+            <Link className="btn btn-outline" href="/gift-cards/sent">
+              All gifts I sent
+            </Link>
+          </div>
         </div>
       </section>
     </main>

@@ -6,6 +6,8 @@ import { z } from "zod";
 import { CheckoutPaymentSummary } from "@/features/checkout/CheckoutPaymentSummary";
 import { CheckoutStepperSection } from "@/features/checkout/CheckoutStepperSection";
 import { GiftCreditPayment } from "@/features/checkout/GiftCreditPayment";
+import { GiftCreditsNotice } from "@/features/gift-cards/GiftCreditsNotice";
+import { listClaimedCreditsForSession } from "@/lib/credits/queries";
 import { PayPalCheckout } from "@/features/checkout/PayPalCheckout";
 import { requireUser } from "@/lib/auth/require-user";
 import { isPackageKey } from "@/lib/orders/catalog";
@@ -91,6 +93,7 @@ export default async function PaymentPage({ searchParams }: { searchParams: Prom
 
   const clientId = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID ?? "";
   const packageKey = isPackageKey(data.package_key) ? data.package_key : "signature";
+  const claimedCredits = await listClaimedCreditsForSession();
 
   return (
     <main>
@@ -102,6 +105,7 @@ export default async function PaymentPage({ searchParams }: { searchParams: Prom
       >
         <div className="container">
           <CheckoutStepperSection current={3} orderId={data.id} />
+          <GiftCreditsNotice credits={claimedCredits} highlightPackageKey={packageKey} />
           <div className="split-r">
             <GiftCreditPayment
               orderId={data.id}

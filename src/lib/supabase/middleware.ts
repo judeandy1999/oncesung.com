@@ -13,6 +13,8 @@ const PROTECTED = [
   "/order-confirmed",
   "/gift-cards/pay",
   "/gift-cards/success",
+  "/gift-cards/sent",
+  "/gift-cards/card",
 ];
 
 function isProtected(pathname: string) {

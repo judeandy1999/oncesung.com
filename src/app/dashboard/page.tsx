@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { AccountSidebar } from "@/components/AccountSidebar";
 import { MyOrdersList } from "@/features/dashboard/MyOrdersList";
+import { GiftCreditsPanel } from "@/features/dashboard/GiftCreditsPanel";
 import { NotificationBanner } from "@/features/dashboard/NotificationBanner";
+import { listClaimedCreditsForSession } from "@/lib/credits/queries";
 import { requireUser } from "@/lib/auth/require-user";
 import { getOwnProfile } from "@/lib/account/profile";
 import { isAdminConfigured, isAdminEmail } from "@/lib/orders/admin";
@@ -16,7 +18,11 @@ export const metadata: Metadata = {
 
 export default async function DashboardPage() {
   const user = await requireUser("/dashboard");
-  const [profile, orders] = await Promise.all([getOwnProfile(), listOwnPaidOrders()]);
+  const [profile, orders, credits] = await Promise.all([
+    getOwnProfile(),
+    listOwnPaidOrders(),
+    listClaimedCreditsForSession(),
+  ]);
   const name = profile?.fullName || user.email || "Your account";
   const email = profile?.email || user.email || "";
   const initial = name.trim().charAt(0).toUpperCase() || "?";
@@ -35,6 +41,7 @@ export default async function DashboardPage() {
           />
           <div>
             <NotificationBanner />
+            <GiftCreditsPanel credits={credits} />
             <MyOrdersList orders={orders} />
           </div>
         </div>

@@ -16,14 +16,16 @@ export type AccountSidebarActive =
   | "dashboard"
   | "requests"
   | "account"
-  | "admin";
+  | "admin"
+  | "gift-sent";
 
 const NAV: { key: AccountSidebarActive | "create" | "favourites" | "gift-cards" | "referral" | "support"; href: string; label: string; Icon: typeof Package }[] = [
   { key: "dashboard", href: "/dashboard", label: "My Orders", Icon: Package },
   { key: "requests", href: "/requests", label: "Revisions & Remakes", Icon: MessageCircle },
   { key: "create", href: "/song-intake", label: "Create a New Song", Icon: Plus },
   { key: "favourites", href: "/examples", label: "My Favourites", Icon: Heart },
-  { key: "gift-cards", href: "/gift-cards", label: "Gift Cards", Icon: Gift },
+  { key: "gift-sent", href: "/gift-cards/sent", label: "Gifts I sent", Icon: Gift },
+  { key: "gift-cards", href: "/gift-cards", label: "Buy a gift card", Icon: Gift },
   { key: "referral", href: "/referral", label: "Refer a Friend", Icon: Users },
   { key: "account", href: "/account", label: "My Account", Icon: Settings },
   { key: "support", href: "/faq", label: "Support", Icon: HelpCircle },
