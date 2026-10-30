@@ -1,12 +1,17 @@
 import type { Metadata } from "next";
-import { HtmlMain } from "@/components/HtmlMain";
-import { html_referral } from "@/data/page-content";
+import { ComingSoonPage } from "@/components/ComingSoonPage";
 
 export const metadata: Metadata = {
   title: "Refer a Friend",
-  description: "Personalized songs for every occasion.",
+  description: "Referral rewards are coming soon.",
+  robots: { index: false, follow: true },
 };
 
-export default function Page() {
-  return <HtmlMain html={html_referral} />;
+export default function ReferralPage() {
+  return (
+    <ComingSoonPage
+      title="Refer a friend"
+      lead="Share Oncesung with someone you love and earn rewards when they order — this program isn’t live yet."
+    />
+  );
 }

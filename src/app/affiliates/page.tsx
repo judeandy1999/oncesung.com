@@ -1,18 +1,18 @@
 import type { Metadata } from "next";
-import { HtmlMain } from "@/components/HtmlMain";
-import { html_affiliates } from "@/data/page-content";
-import { AffiliatesEnhancer } from "@/features/affiliates/AffiliatesEnhancer";
+import { ComingSoonPage } from "@/components/ComingSoonPage";
 
 export const metadata: Metadata = {
   title: "Affiliate Partners",
-  description: "Partner with Oncesung. Earn commission by sharing personalized, AI-created songs with your audience.",
+  description: "The Oncesung partner program is opening soon.",
+  robots: { index: false, follow: true },
 };
 
-export default function Page() {
+export default function AffiliatesPage() {
   return (
-    <>
-      <HtmlMain html={html_affiliates} />
-      <AffiliatesEnhancer />
-    </>
+    <ComingSoonPage
+      title="Partner program"
+      lead="Creators, bloggers, and wedding pros will soon be able to earn commission by sharing personalized songs with their audience."
+      eyebrow="Opening soon"
+    />
   );
 }

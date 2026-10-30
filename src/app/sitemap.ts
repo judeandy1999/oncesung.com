@@ -13,8 +13,6 @@ const routes = [
   "/faq",
   "/guarantee",
   "/gift-cards",
-  "/referral",
-  "/affiliates",
   "/sitemap",
   "/song-intake",
   "/checkout/package",
