@@ -49,7 +49,7 @@ export async function POST(request: Request) {
     if (priceError) return NextResponse.json({ error: "Could not start PayPal." }, { status: 500 });
 
     const paypalOrderId = await createPayPalOrder({
-      orderId: order.id,
+      customId: order.id,
       value: centsToPayPalValue(pkg.amountCents),
       description: `Oncesung ${pkg.name} song`,
     });

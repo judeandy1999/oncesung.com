@@ -5,6 +5,7 @@ import { notFound, redirect } from "next/navigation";
 import { z } from "zod";
 import { CheckoutPaymentSummary } from "@/features/checkout/CheckoutPaymentSummary";
 import { CheckoutStepperSection } from "@/features/checkout/CheckoutStepperSection";
+import { GiftCreditPayment } from "@/features/checkout/GiftCreditPayment";
 import { PayPalCheckout } from "@/features/checkout/PayPalCheckout";
 import { requireUser } from "@/lib/auth/require-user";
 import { isPackageKey } from "@/lib/orders/catalog";
@@ -69,11 +70,21 @@ export default async function PaymentPage({ searchParams }: { searchParams: Prom
   }
 
   const supabase = await createClient();
+  const {
+    data: { user: payer },
+  } = await supabase.auth.getUser();
   const { data } = await supabase
     .from("orders")
     .select("id, package_key, status, recipient_name, occasion")
     .eq("id", order)
     .maybeSingle();
+  const { data: giftCredits } = payer
+    ? await supabase
+        .from("song_credits")
+        .select("id, package_key")
+        .eq("recipient_user_id", payer.id)
+        .eq("status", "claimed")
+    : { data: [] };
 
   if (!data) notFound();
   if (data.status === "paid") redirect(`/order-confirmed?order=${encodeURIComponent(data.id)}`);
@@ -92,6 +103,11 @@ export default async function PaymentPage({ searchParams }: { searchParams: Prom
         <div className="container">
           <CheckoutStepperSection current={3} orderId={data.id} />
           <div className="split-r">
+            <GiftCreditPayment
+              orderId={data.id}
+              packageKey={packageKey}
+              credits={(giftCredits ?? []).filter((c) => isPackageKey(c.package_key)) as { id: string; package_key: typeof packageKey }[]}
+            />
             <PayPalCheckout
               orderId={data.id}
               clientId={clientId}

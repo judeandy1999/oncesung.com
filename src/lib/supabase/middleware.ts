@@ -2,7 +2,18 @@ import { createServerClient } from "@supabase/ssr";
 import { NextResponse, type NextRequest } from "next/server";
 import { safeNextPath } from "@/lib/auth/redirect";
 
-const PROTECTED = ["/account", "/dashboard", "/downloads", "/song-player", "/requests", "/admin", "/checkout/payment", "/order-confirmed"];
+const PROTECTED = [
+  "/account",
+  "/dashboard",
+  "/downloads",
+  "/song-player",
+  "/requests",
+  "/admin",
+  "/checkout/payment",
+  "/order-confirmed",
+  "/gift-cards/pay",
+  "/gift-cards/success",
+];
 
 function isProtected(pathname: string) {
   return PROTECTED.some((path) => pathname === path || pathname.startsWith(`${path}/`));

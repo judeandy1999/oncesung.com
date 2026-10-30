@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { AccountSidebar } from "@/components/AccountSidebar";
 import { MyOrdersList } from "@/features/dashboard/MyOrdersList";
+import { NotificationBanner } from "@/features/dashboard/NotificationBanner";
 import { requireUser } from "@/lib/auth/require-user";
 import { getOwnProfile } from "@/lib/account/profile";
 import { isAdminConfigured, isAdminEmail } from "@/lib/orders/admin";
@@ -33,6 +34,7 @@ export default async function DashboardPage() {
             showAdmin={showAdmin}
           />
           <div>
+            <NotificationBanner />
             <MyOrdersList orders={orders} />
           </div>
         </div>

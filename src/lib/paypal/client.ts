@@ -57,14 +57,18 @@ async function paypalFetch(path: string, init: RequestInit = {}): Promise<Respon
   });
 }
 
-export async function createPayPalOrder(input: { orderId: string; value: string; description: string }): Promise<string> {
+export async function createPayPalOrder(input: {
+  customId: string;
+  value: string;
+  description: string;
+}): Promise<string> {
   const response = await paypalFetch("/v2/checkout/orders", {
     method: "POST",
     body: JSON.stringify({
       intent: "CAPTURE",
       purchase_units: [
         {
-          custom_id: input.orderId,
+          custom_id: input.customId.slice(0, 127),
           description: input.description,
           amount: { currency_code: "USD", value: input.value },
         },

@@ -85,6 +85,30 @@ export function songReadyBuyerEmail(input: {
   return { subject: "Your song is ready on Oncesung", html, text };
 }
 
+export function giftCreditReceivedEmail(input: {
+  recipientName: string;
+  purchaserName: string;
+  packageName: string;
+  redeemUrl: string;
+  message: string;
+}) {
+  const name = input.recipientName.trim() ? escapeHtml(input.recipientName.trim()) : "there";
+  const from = input.purchaserName.trim() ? escapeHtml(input.purchaserName.trim()) : "Someone special";
+  const note = input.message.trim()
+    ? `<p style="margin:0 0 16px;font-style:italic;color:#6b6574;">“${escapeHtml(input.message.trim())}”</p>`
+    : "";
+  const html = layout(`
+    <p style="margin:0 0 16px;">Hi ${name},</p>
+    <p style="margin:0 0 16px;">${from} sent you an Oncesung ${escapeHtml(input.packageName)} gift — one custom song, on us.</p>
+    ${note}
+    <p style="margin:0 0 16px;">Claim it, tell your story, and our songwriters will create your song. You will not pay at checkout.</p>
+    ${button(input.redeemUrl, "Claim your song gift")}
+    <p style="margin:16px 0 0;font-size:14px;color:#6b6574;">Sign in with this email address to claim the gift.</p>
+  `);
+  const text = `Hi ${input.recipientName || "there"},\n\n${input.purchaserName || "Someone"} sent you an Oncesung ${input.packageName} gift.\nClaim: ${input.redeemUrl}`;
+  return { subject: "You received a song gift on Oncesung", html, text };
+}
+
 export function songReadyGiftEmail(input: {
   recipientName: string;
   giverName: string;
