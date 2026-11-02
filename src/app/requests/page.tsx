@@ -1,23 +1,31 @@
 import type { Metadata } from "next";
+import { Suspense } from "react";
 import { AccountAreaLayout } from "@/components/AccountAreaLayout";
-import { LegacyInteractivePage } from "@/components/LegacyInteractivePage";
-import { REQUESTS_HTML } from "@/features/requests/requests-html";
-import { REQUESTS_SCRIPT } from "@/features/requests/requests-script";
-import { stripLegacyAccountShell } from "@/lib/account/legacy-shell";
+import { LoadingSpinner } from "@/components/LoadingSpinner";
+import { RevisionsRemakesPanel } from "@/features/requests/RevisionsRemakesPanel";
+import {
+  listEligibleRevisionOrders,
+  listSongChangeRequestsForSession,
+} from "@/lib/revisions/queries";
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "Revisions & Remakes",
-  description: "Personalized songs for every occasion.",
+  description: "Request changes to your delivered songs.",
 };
 
 export default async function RequestsPage() {
+  const [eligibleOrders, requests] = await Promise.all([
+    listEligibleRevisionOrders(),
+    listSongChangeRequestsForSession(),
+  ]);
+
   return (
     <AccountAreaLayout active="requests" loginNext="/requests">
-      <LegacyInteractivePage
-        html={stripLegacyAccountShell(REQUESTS_HTML)}
-        script={REQUESTS_SCRIPT}
-        label="requests"
-      />
+      <Suspense fallback={<LoadingSpinner label="Loading requests…" />}>
+        <RevisionsRemakesPanel eligibleOrders={eligibleOrders} initialRequests={requests} />
+      </Suspense>
     </AccountAreaLayout>
   );
 }

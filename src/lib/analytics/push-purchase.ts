@@ -1,4 +1,5 @@
 import { isConversionTrackingAllowed } from "@/lib/analytics/consent";
+import { GOOGLE_ADS_PURCHASE_SEND_TO } from "@/lib/analytics/google-ads";
 
 const DEDUPE_PREFIX = "oncesung:gtm_purchase:";
 
@@ -50,6 +51,17 @@ export function pushPurchaseConversion(order: PurchaseConversion): boolean {
     value: order.value,
     currency: order.currency,
   });
+
+  const gtag = window.gtag;
+  if (typeof gtag === "function" && GOOGLE_ADS_PURCHASE_SEND_TO) {
+    gtag("event", "conversion", {
+      send_to: GOOGLE_ADS_PURCHASE_SEND_TO,
+      value: order.value,
+      currency: order.currency.toUpperCase(),
+      transaction_id: order.transactionId,
+    });
+  }
+
   markPurchaseConversionTracked(order.transactionId);
   return true;
 }
