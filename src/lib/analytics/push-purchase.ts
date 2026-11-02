@@ -10,7 +10,8 @@ export type PurchaseConversion = {
 
 declare global {
   interface Window {
-    dataLayer?: Record<string, unknown>[];
+    /** GTM events (objects) and gtag consent commands (arrays). */
+    dataLayer?: unknown[];
   }
 }
 
