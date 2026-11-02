@@ -1,52 +1,60 @@
 "use client";
 
 import Link from "next/link";
-import { useCallback, useEffect, useId, useState } from "react";
+import { useEffect, useId, useState, useSyncExternalStore } from "react";
 import {
   CONSENT_OPEN_EVENT,
   CONSENT_PRESETS,
-  hasStoredCookieConsent,
+  CONSENT_UPDATE_EVENT,
   readStoredCookieConsent,
   saveCookieConsent,
+  type StoredCookieConsent,
 } from "@/lib/analytics/cookie-consent";
+
+function subscribeStoredConsent(onStoreChange: () => void) {
+  const refresh = () => onStoreChange();
+  window.addEventListener(CONSENT_UPDATE_EVENT, refresh);
+  window.addEventListener("storage", refresh);
+  return () => {
+    window.removeEventListener(CONSENT_UPDATE_EVENT, refresh);
+    window.removeEventListener("storage", refresh);
+  };
+}
+
+function getStoredConsentSnapshot(): StoredCookieConsent | null {
+  return readStoredCookieConsent();
+}
 
 export function CookieConsentBanner() {
   const titleId = useId();
-  const [visible, setVisible] = useState(false);
+  const stored = useSyncExternalStore(
+    subscribeStoredConsent,
+    getStoredConsentSnapshot,
+    () => null,
+  );
+  const [prefsOpen, setPrefsOpen] = useState(false);
   const [customize, setCustomize] = useState(false);
   const [analytics, setAnalytics] = useState(false);
   const [marketing, setMarketing] = useState(false);
 
-  const syncFromStorage = useCallback(() => {
-    const stored = readStoredCookieConsent();
-    if (stored) {
-      setAnalytics(stored.analytics);
-      setMarketing(stored.marketing);
-      setVisible(false);
-      setCustomize(false);
-      return;
-    }
-    setVisible(true);
-  }, []);
-
   useEffect(() => {
-    syncFromStorage();
-
     const onOpen = () => {
-      const stored = readStoredCookieConsent();
-      setAnalytics(stored?.analytics ?? false);
-      setMarketing(stored?.marketing ?? false);
-      setCustomize(Boolean(stored));
-      setVisible(true);
+      const current = readStoredCookieConsent();
+      setAnalytics(current?.analytics ?? false);
+      setMarketing(current?.marketing ?? false);
+      setCustomize(Boolean(current));
+      setPrefsOpen(true);
     };
 
     window.addEventListener(CONSENT_OPEN_EVENT, onOpen);
     return () => window.removeEventListener(CONSENT_OPEN_EVENT, onOpen);
-  }, [syncFromStorage]);
+  }, []);
+
+  const visible = prefsOpen || stored === null;
 
   function dismiss(choice: { analytics: boolean; marketing: boolean }) {
     saveCookieConsent(choice);
-    setVisible(false);
+    setPrefsOpen(false);
     setCustomize(false);
   }
 
@@ -113,15 +121,15 @@ export function CookieConsentBanner() {
                 type="button"
                 className="btn btn-outline btn-sm"
                 onClick={() => {
-                  if (hasStoredCookieConsent()) {
-                    setVisible(false);
+                  if (stored) {
+                    setPrefsOpen(false);
                     setCustomize(false);
                   } else {
                     setCustomize(false);
                   }
                 }}
               >
-                {hasStoredCookieConsent() ? "Close" : "Back"}
+                {stored ? "Close" : "Back"}
               </button>
             </div>
           </div>
