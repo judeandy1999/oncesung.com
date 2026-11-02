@@ -18,6 +18,7 @@ export function GoogleAnalytics() {
           __html: `
 window.dataLayer = window.dataLayer || [];
 function gtag(){dataLayer.push(arguments);}
+window.gtag = window.gtag || gtag;
 gtag('js', new Date());
 gtag('config', '${GA_MEASUREMENT_ID}');
 `.trim(),

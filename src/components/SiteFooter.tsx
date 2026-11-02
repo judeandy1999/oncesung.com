@@ -5,6 +5,7 @@ import { FormEvent } from "react";
 import { signOut } from "@/features/auth/actions";
 import { Logo } from "./Logo";
 import { useToast } from "@/hooks/use-toast";
+import { openCookieConsentPreferences } from "@/lib/analytics/cookie-consent";
 
 export function SiteFooter({ email }: { email: string | null }) {
   const { toast } = useToast();
@@ -137,7 +138,12 @@ export function SiteFooter({ email }: { email: string | null }) {
         </div>
         <div className="foot-bottom">
           <span>© 2026 Oncesung. All rights reserved.</span>
-          <span>Privacy · Terms · Cookies</span>
+          <span>
+            Privacy · Terms ·{" "}
+            <button type="button" className="foot-link-btn" onClick={openCookieConsentPreferences}>
+              Cookies
+            </button>
+          </span>
         </div>
       </div>
     </footer>

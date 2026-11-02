@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import { Caveat, DM_Serif_Display, Inter } from "next/font/google";
+import { AnalyticsConsentBootstrap } from "@/components/AnalyticsConsentBootstrap";
+import { CookieConsentBanner } from "@/components/CookieConsentBanner";
 import { GoogleAnalytics } from "@/components/GoogleAnalytics";
 import { GoogleTagManager } from "@/components/GoogleTagManager";
 import { SiteFooter } from "@/components/SiteFooter";
@@ -62,6 +64,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
   return (
     <html lang="en">
       <body className={`${inter.variable} ${dmSerif.variable} ${caveat.variable}`}>
+        <AnalyticsConsentBootstrap />
         <GoogleTagManager />
         <GoogleAnalytics />
         <ToastProvider>
@@ -70,6 +73,7 @@ export default async function RootLayout({ children }: Readonly<{ children: Reac
           <SiteFooter email={email} />
           <SiteInteractions />
           <SupportChatWidget userId={userId} isAdmin={isAdminEmail(email)} />
+          <CookieConsentBanner />
         </ToastProvider>
       </body>
     </html>
