@@ -5,10 +5,10 @@ import { useEffect, useId, useState, useSyncExternalStore } from "react";
 import {
   CONSENT_OPEN_EVENT,
   CONSENT_PRESETS,
+  CONSENT_STORAGE_KEY,
   CONSENT_UPDATE_EVENT,
   readStoredCookieConsent,
   saveCookieConsent,
-  type StoredCookieConsent,
 } from "@/lib/analytics/cookie-consent";
 
 function subscribeStoredConsent(onStoreChange: () => void) {
@@ -21,8 +21,13 @@ function subscribeStoredConsent(onStoreChange: () => void) {
   };
 }
 
-function getStoredConsentSnapshot(): StoredCookieConsent | null {
-  return readStoredCookieConsent();
+/** Raw localStorage value — stable reference until consent changes (required by useSyncExternalStore). */
+function getStoredConsentSnapshot(): string | null {
+  try {
+    return localStorage.getItem(CONSENT_STORAGE_KEY);
+  } catch {
+    return null;
+  }
 }
 
 export function CookieConsentBanner() {
@@ -50,7 +55,8 @@ export function CookieConsentBanner() {
     return () => window.removeEventListener(CONSENT_OPEN_EVENT, onOpen);
   }, []);
 
-  const visible = prefsOpen || stored === null;
+  const hasStoredChoice = stored !== null && readStoredCookieConsent() !== null;
+  const visible = prefsOpen || !hasStoredChoice;
 
   function dismiss(choice: { analytics: boolean; marketing: boolean }) {
     saveCookieConsent(choice);
@@ -121,7 +127,7 @@ export function CookieConsentBanner() {
                 type="button"
                 className="btn btn-outline btn-sm"
                 onClick={() => {
-                  if (stored) {
+                  if (hasStoredChoice) {
                     setPrefsOpen(false);
                     setCustomize(false);
                   } else {
@@ -129,7 +135,7 @@ export function CookieConsentBanner() {
                   }
                 }}
               >
-                {stored ? "Close" : "Back"}
+                {hasStoredChoice ? "Close" : "Back"}
               </button>
             </div>
           </div>
