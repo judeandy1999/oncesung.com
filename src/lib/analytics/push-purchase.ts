@@ -1,5 +1,5 @@
-import { isConversionTrackingAllowed } from "@/lib/analytics/consent";
-import { GOOGLE_ADS_PURCHASE_SEND_TO } from "@/lib/analytics/google-ads";
+import { isAdsConversionAllowed } from "@/lib/analytics/consent";
+import { GOOGLE_ADS_ID, GOOGLE_ADS_PURCHASE_SEND_TO } from "@/lib/analytics/google-ads";
 
 const DEDUPE_PREFIX = "oncesung:gtm_purchase:";
 
@@ -13,6 +13,7 @@ declare global {
   interface Window {
     /** GTM events (objects) and gtag consent commands (arrays). */
     dataLayer?: unknown[];
+    gtag?: (...args: unknown[]) => void;
   }
 }
 
@@ -29,6 +30,12 @@ export function hasPurchaseConversionBeenTracked(transactionId: string): boolean
   }
 }
 
+export const ADMIN_TEST_TRANSACTION_PREFIX = "admin-verify-";
+
+export function isAdminTestTransactionId(transactionId: string): boolean {
+  return transactionId.startsWith(ADMIN_TEST_TRANSACTION_PREFIX);
+}
+
 export function markPurchaseConversionTracked(transactionId: string): void {
   try {
     localStorage.setItem(purchaseConversionStorageKey(transactionId), "1");
@@ -37,30 +44,52 @@ export function markPurchaseConversionTracked(transactionId: string): void {
   }
 }
 
-/** Push a Google Ads / GTM purchase event once per order when consent allows. */
+/** gtag.js for AW-… must be on the page before conversion events count in Ads. */
+export function isGoogleAdsGtagReady(): boolean {
+  if (typeof document === "undefined") return false;
+  if (typeof window.gtag !== "function") return false;
+  const aw = GOOGLE_ADS_ID.replace(/'/g, "");
+  return Boolean(document.querySelector(`script[src*="googletagmanager.com/gtag/js?id=${aw}"]`));
+}
+
+function isValidConversionValue(order: PurchaseConversion): boolean {
+  if (!Number.isFinite(order.value)) return false;
+  if (isAdminTestTransactionId(order.transactionId)) return order.value >= 0;
+  return order.value > 0;
+}
+
+/** Push Google Ads purchase conversion once per order when marketing consent + gtag are ready. */
 export function pushPurchaseConversion(order: PurchaseConversion): boolean {
-  if (!order.transactionId || !Number.isFinite(order.value) || order.value <= 0) return false;
+  if (!order.transactionId || !isValidConversionValue(order)) return false;
   if (!order.currency) return false;
-  if (!isConversionTrackingAllowed()) return false;
+  if (!isAdsConversionAllowed()) return false;
   if (hasPurchaseConversionBeenTracked(order.transactionId)) return false;
+  if (!isGoogleAdsGtagReady()) return false;
+
+  const gtag = window.gtag;
+  if (typeof gtag !== "function" || !GOOGLE_ADS_PURCHASE_SEND_TO) return false;
+
+  gtag("event", "conversion", {
+    send_to: GOOGLE_ADS_PURCHASE_SEND_TO,
+    value: order.value,
+    currency: order.currency.toUpperCase(),
+    transaction_id: order.transactionId,
+  });
 
   window.dataLayer = window.dataLayer || [];
   window.dataLayer.push({
     event: "purchase",
     transaction_id: order.transactionId,
     value: order.value,
-    currency: order.currency,
+    currency: order.currency.toUpperCase(),
   });
-
-  const gtag = window.gtag;
-  if (typeof gtag === "function" && GOOGLE_ADS_PURCHASE_SEND_TO) {
-    gtag("event", "conversion", {
-      send_to: GOOGLE_ADS_PURCHASE_SEND_TO,
-      value: order.value,
-      currency: order.currency.toUpperCase(),
-      transaction_id: order.transactionId,
-    });
-  }
+  window.dataLayer.push({
+    event: "conversion",
+    send_to: GOOGLE_ADS_PURCHASE_SEND_TO,
+    value: order.value,
+    currency: order.currency.toUpperCase(),
+    transaction_id: order.transactionId,
+  });
 
   markPurchaseConversionTracked(order.transactionId);
   return true;

@@ -27,3 +27,30 @@ export function isConversionTrackingAllowed(): boolean {
   if (adStorage === undefined && analyticsStorage === undefined) return true;
   return adStorage === "granted" || analyticsStorage === "granted";
 }
+
+/** Google Ads conversion tags require ad_storage (marketing cookies). */
+export function isAdsConversionAllowed(): boolean {
+  if (typeof window === "undefined") return false;
+
+  const dl = window.dataLayer;
+  if (!dl?.length) return true;
+
+  let adStorage: string | undefined;
+
+  for (const item of dl) {
+    if (Array.isArray(item) && item[0] === "consent") {
+      const payload = item[2];
+      if (payload && typeof payload === "object") {
+        const p = payload as Record<string, string>;
+        if (p.ad_storage) adStorage = p.ad_storage;
+      }
+      continue;
+    }
+    if (!item || typeof item !== "object") continue;
+    const row = item as Record<string, unknown>;
+    if (typeof row.ad_storage === "string") adStorage = row.ad_storage;
+  }
+
+  if (adStorage === undefined) return true;
+  return adStorage === "granted";
+}

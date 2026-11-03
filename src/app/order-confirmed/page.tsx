@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { PurchaseConversionTracker } from "@/features/analytics/PurchaseConversionTracker";
 import { requireUser } from "@/lib/auth/require-user";
+import { orderReference } from "@/features/orders/order-progress";
 import { formatCents, packageByKey } from "@/lib/orders/catalog";
 import { getOwnOrder } from "@/lib/orders/queries";
 
@@ -56,8 +57,16 @@ export default async function OrderConfirmedPage({ searchParams }: { searchParam
           <h1>Your payment is confirmed</h1>
           <p className="muted">
             {paid.recipient_name ? `Song for ${paid.recipient_name}` : "Your song"}
-            {paid.occasion ? ` · ${paid.occasion}` : ""} · {pkg.name} · {formatCents(paid.amount_cents)}
+            {paid.occasion ? ` · ${paid.occasion}` : ""} · {pkg.name} ·{" "}
+            <span id="conversion-value">{formatCents(paid.amount_cents)}</span>
             {paid.paid_at ? ` · ${paidDate(paid.paid_at)}` : ""}
+          </p>
+          <p className="xs muted" style={{ marginTop: 8 }}>
+            Transaction ID: <span id="conversion-transaction-id">{paid.id}</span>
+            {" · "}
+            Reference: <span id="conversion-order-ref">{orderReference(paid.id)}</span>
+            {" · "}
+            Currency: <span id="conversion-currency">{(paid.currency || "USD").toUpperCase()}</span>
           </p>
           <p>The song is paid and waiting. It will appear on My Orders after the finished file is uploaded.</p>
           <Link className="btn btn-primary" href="/dashboard">
