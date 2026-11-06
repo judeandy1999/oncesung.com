@@ -48,7 +48,7 @@ export default async function PaymentPage({ searchParams }: { searchParams: Prom
             <h1>Pay with PayPal</h1>
             <p className="muted">
               This step is not the old demo card form. After your story and contact details are saved, you land here
-              with PayPal buttons for Essential ($49), Signature ($89), or Concierge ($149).
+              with PayPal buttons for Essential ($0.50), Signature ($89), or Concierge ($149).
             </p>
             <ol className="muted" style={{ marginTop: 12, paddingLeft: 20 }}>
               <li>Sign in and complete your story (Create a New Song or checkout review).</li>

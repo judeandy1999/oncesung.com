@@ -6,7 +6,7 @@ export const PACKAGE_CATALOG: Record<
   PackageKey,
   { key: PackageKey; name: string; amountCents: number; delivery: string }
 > = {
-  essential: { key: "essential", name: "Essential", amountCents: 4900, delivery: "48-hour delivery" },
+  essential: { key: "essential", name: "Essential", amountCents: 50, delivery: "48-hour delivery" },
   signature: { key: "signature", name: "Signature", amountCents: 8900, delivery: "72-hour delivery" },
   concierge: { key: "concierge", name: "Concierge", amountCents: 14900, delivery: "72-hour delivery" },
 };
